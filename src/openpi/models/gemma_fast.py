@@ -1,4 +1,6 @@
-﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
+
 # Copyright 2024 Big Vision Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +35,6 @@ import openpi.shared.array_typing as at
 Variant = Literal["gemma_2b", "gemma_2b_lora"]
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_config(variant):
     """Returns config for specified gemma variant."""
     if variant == "gemma_2b":
@@ -75,12 +76,10 @@ def get_config(variant):
     raise ValueError(f"Unknown variant: {variant}")
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @at.typecheck
 class Einsum(nn.Module):
     shape: tuple[int, ...]
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, eqn, x):
         dtype = x.dtype  # original dtype, could be half-precision
@@ -88,10 +87,8 @@ class Einsum(nn.Module):
         return jnp.einsum(eqn, x, w)
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @at.typecheck
 class RMSNorm(nn.Module):
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x):
         dtype = x.dtype  # original dtype, could be half-precision
@@ -104,7 +101,6 @@ class RMSNorm(nn.Module):
         return normed_inputs.astype(dtype)  # return in original dtype
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @at.typecheck
 class Embedder(nn.Module):
     """Embedder module."""
@@ -112,7 +108,6 @@ class Embedder(nn.Module):
     vocab_size: int
     embed_dim: int
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         self.input_embedding_table = self.param(
             "input_embedding",
@@ -120,18 +115,15 @@ class Embedder(nn.Module):
             (self.vocab_size, self.embed_dim),
         )
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def encode(self, x):
         x = self.input_embedding_table[(x,)]
         x *= jnp.sqrt(self.embed_dim).astype(x.dtype)
         return x
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def decode(self, x):
         return jnp.dot(x, self.input_embedding_table.T)
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @at.typecheck
 class Attention(nn.Module):
     """Attention module."""
@@ -145,7 +137,6 @@ class Attention(nn.Module):
 
     lora_config: lora.LoRAConfig | None = None
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         if self.num_kv_heads == self.num_heads:
             self.qkv_einsum = lora.Einsum(
@@ -174,7 +165,6 @@ class Attention(nn.Module):
             lora_config=self.lora_config,
         )
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     def _init_cache(self, k, v, cache_size):
         """Initialize KV cache"""
         prefill_len = k.shape[1]
@@ -185,7 +175,6 @@ class Attention(nn.Module):
         idx = jnp.zeros((k.shape[0],), dtype=jnp.int32) + prefill_len
         return idx, k_cache, v_cache
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def _update_cache(self, k, v, idx, k_cache, v_cache):
         """Update KV cache with new values"""
         assert k.shape[1] == 1, "Only support kv-cache updates of length 1"
@@ -196,7 +185,6 @@ class Attention(nn.Module):
         idx_new = idx + 1
         return idx_new, k_new, v_new
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x, positions, attn_mask, kv_cache, decode, deterministic=True):  # noqa: FBT002
         dtype = x.dtype  # original dtype, could be half-precision
@@ -239,7 +227,6 @@ class Attention(nn.Module):
         return self.attn_vec_einsum("BTNH,NHD->BTD", encoded), kv_cache
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @at.typecheck
 class Block(nn.Module):
     """Transformer block."""
@@ -255,7 +242,6 @@ class Block(nn.Module):
     cache_dtype: str | None = None
     lora_configs: ml_collections.ConfigDict = dataclasses.field(default_factory=ml_collections.ConfigDict)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         self.pre_attention_norm = RMSNorm()
         self.attn = Attention(
@@ -275,7 +261,6 @@ class Block(nn.Module):
         else:
             self.drop = lambda x, _: x
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, x, kv_cache, positions, attn_mask, decode, deterministic=True):  # noqa: FBT002
         x = nn.with_logical_constraint(x, ("act_batch", "act_len", "act_emb"))
         inputs_normalized = self.pre_attention_norm(x)
@@ -293,7 +278,6 @@ class Block(nn.Module):
 KVCache: TypeAlias = tuple[at.Int[at.Array, " b"], at.Float[at.Array, "b _t _k _h"], at.Float[at.Array, "b _t _v _h"]]
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @at.typecheck
 class Module(nn.Module):
     """gemma model."""
@@ -318,7 +302,6 @@ class Module(nn.Module):
     remat_policy: str = "none"
     lora_configs: ml_collections.ConfigDict = dataclasses.field(default_factory=ml_collections.ConfigDict)
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(
         self,
@@ -437,13 +420,11 @@ class Module(nn.Module):
 
         return x, kv_cache, out
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     def init(self):
         """Convenience method for initializing all parameters, necessary due to the quirks of linen."""
         self(jnp.zeros((1, 1), dtype=jnp.int32))
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _apply_rope(x, *, positions, max_wavelength=10_000):
     """Applies RoPE positions [B, L] to x [B, L, H, D]."""
     freq_exponents = (2.0 / x.shape[-1]) * jnp.arange(x.shape[-1] // 2, dtype=jnp.float32)

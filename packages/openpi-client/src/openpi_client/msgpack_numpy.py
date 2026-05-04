@@ -1,4 +1,7 @@
-﻿# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
+# CN: 实现 msgpack_numpy 的核心逻辑与工具（packages/openpi-client/src/openpi_client/msgpack_numpy.py）。
+# EN: Implements core logic and utilities for msgpack_numpy (packages/openpi-client/src/openpi_client/msgpack_numpy.py).
+
+# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
 """Adds NumPy array support to msgpack.
 
 msgpack is good for (de)serializing data over a network for multiple reasons:

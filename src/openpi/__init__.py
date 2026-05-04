@@ -1,2 +1,4 @@
-﻿# [解读]: 该源码文件参与 openpi 的端到端机器人 VLA 流程，负责连接配置、数据、模型或运行时边界。
+# CN: 模块说明 - 该文件用于初始化 openpi 包并暴露公共接口。
+# EN: Module summary - This file initializes the openpi package and exposes public interfaces.
+
 

@@ -1,4 +1,7 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
+# CN: 实现 convert_jax_model_to_pytorch 的核心逻辑与工具（examples/convert_jax_model_to_pytorch.py）。
+# EN: Implements core logic and utilities for convert_jax_model_to_pytorch (examples/convert_jax_model_to_pytorch.py).
+
 # [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 """
 Load a JAX model and print all parameter keys, with optional conversion to PyTorch.

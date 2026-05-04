@@ -1,4 +1,6 @@
-﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
+
 import dataclasses
 from typing import TYPE_CHECKING
 
@@ -16,7 +18,6 @@ if TYPE_CHECKING:
     from openpi.models.pi0 import Pi0
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class Pi0Config(_model.BaseModelConfig):
     dtype: str = "bfloat16"
@@ -36,7 +37,6 @@ class Pi0Config(_model.BaseModelConfig):
 
     pytorch_compile_mode: str | None = "max-autotune"
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __post_init__(self):
         if self.max_token_len is None:
             object.__setattr__(self, "max_token_len", 200 if self.pi05 else 48)
@@ -50,7 +50,6 @@ class Pi0Config(_model.BaseModelConfig):
                 "max-autotune-no-cudagraphs",
             ]
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     @override
     def model_type(self) -> _model.ModelType:
@@ -58,14 +57,12 @@ class Pi0Config(_model.BaseModelConfig):
             return _model.ModelType.PI05
         return _model.ModelType.PI0
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, rng: at.KeyArrayLike) -> "Pi0":
         from openpi.models.pi0 import Pi0
 
         return Pi0(self, rngs=nnx.Rngs(rng))
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     @override
     def inputs_spec(self, *, batch_size: int = 1) -> tuple[_model.Observation, _model.Actions]:
         image_spec = jax.ShapeDtypeStruct([batch_size, *_model.IMAGE_RESOLUTION, 3], jnp.float32)
@@ -91,7 +88,6 @@ class Pi0Config(_model.BaseModelConfig):
 
         return observation_spec, action_spec
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def get_freeze_filter(self) -> nnx.filterlib.Filter:
         """Returns the freeze filter based on the model config."""
         filters = []

@@ -1,4 +1,7 @@
-﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
+# CN: 测试模块，覆盖 image_tools_test 的行为与边界（packages/openpi-client/src/openpi_client/image_tools_test.py）。
+# EN: Test module for behavior and edge cases of image_tools_test (packages/openpi-client/src/openpi_client/image_tools_test.py).
+
+# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 import numpy as np
 
 import openpi_client.image_tools as image_tools

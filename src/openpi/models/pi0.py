@@ -1,4 +1,6 @@
-﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
+
 import logging
 
 import einops
@@ -17,7 +19,6 @@ from openpi.shared import array_typing as at
 logger = logging.getLogger("openpi")
 
 
-# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_attn_mask(input_mask, mask_ar):
     """Adapted from big_vision.
 
@@ -39,6 +40,8 @@ def make_attn_mask(input_mask, mask_ar):
       mask_ar: bool[?B, N] mask that's true where previous tokens cannot depend on
         it and false where it shares the same attention mask as the previous token.
     """
+    # CN: 通过累计和把 1D 的 AR 分段标记转成 2D 注意力可见性。
+    # EN: Convert 1D AR segment markers into a 2D attention visibility matrix.
     mask_ar = jnp.broadcast_to(mask_ar, input_mask.shape)
     cumsum = jnp.cumsum(mask_ar, axis=1)
     attn_mask = cumsum[:, None, :] <= cumsum[:, :, None]
@@ -46,7 +49,6 @@ def make_attn_mask(input_mask, mask_ar):
     return jnp.logical_and(attn_mask, valid_mask)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 @at.typecheck
 def posemb_sincos(
     pos: at.Real[at.Array, " b"], embedding_dim: int, min_period: float, max_period: float
@@ -55,6 +57,8 @@ def posemb_sincos(
     if embedding_dim % 2 != 0:
         raise ValueError(f"embedding_dim ({embedding_dim}) must be divisible by 2")
 
+    # CN: 使用 log-uniform 频率覆盖快慢时间尺度，提升 t 条件表达能力。
+    # EN: Use log-uniform frequencies to cover short/long time scales for timestep conditioning.
     fraction = jnp.linspace(0.0, 1.0, embedding_dim // 2)
     period = min_period * (max_period / min_period) ** fraction
     sinusoid_input = jnp.einsum(
@@ -66,7 +70,6 @@ def posemb_sincos(
     return jnp.concatenate([jnp.sin(sinusoid_input), jnp.cos(sinusoid_input)], axis=-1)
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class Pi0(_model.BaseModel):
     def __init__(self, config: pi0_config.Pi0Config, rngs: nnx.Rngs):
         super().__init__(config.action_dim, config.action_horizon, config.max_token_len)
@@ -106,11 +109,12 @@ class Pi0(_model.BaseModel):
         # This attribute gets automatically set by model.train() and model.eval().
         self.deterministic = True
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @at.typecheck
     def embed_prefix(
         self, obs: _model.Observation
     ) -> tuple[at.Float[at.Array, "b s emb"], at.Bool[at.Array, "b s"], at.Bool[at.Array, " s"]]:
+        # CN: Prefix 对应视觉+语言上下文，内部采用双向可见（ar_mask=False）。
+        # EN: Prefix is the vision-language context and uses bidirectional visibility (ar_mask=False).
         input_mask = []
         ar_mask = []
         tokens = []
@@ -141,7 +145,6 @@ class Pi0(_model.BaseModel):
         ar_mask = jnp.array(ar_mask)
         return tokens, input_mask, ar_mask
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @at.typecheck
     def embed_suffix(
         self, obs: _model.Observation, noisy_actions: _model.Actions, timestep: at.Float[at.Array, " b"]
@@ -155,7 +158,8 @@ class Pi0(_model.BaseModel):
         ar_mask = []
         tokens = []
         if not self.pi05:
-            # add a single state token
+            # CN: pi0 将连续状态作为单独 suffix token 注入动作专家分支。
+            # EN: pi0 injects continuous state as a dedicated suffix token.
             state_token = self.state_proj(obs.state)[:, None, :]
             tokens.append(state_token)
             input_mask.append(jnp.ones((obs.state.shape[0], 1), dtype=jnp.bool_))
@@ -163,10 +167,12 @@ class Pi0(_model.BaseModel):
             ar_mask += [True]
 
         action_tokens = self.action_in_proj(noisy_actions)
-        # embed timestep using sine-cosine positional encoding with sensitivity in the range [0, 1]
+        # CN: 将 Flow Matching 的时间变量 t in (0,1] 编码为正余弦特征。
+        # EN: Map the flow-matching time t in (0, 1] to sinusoidal features.
         time_emb = posemb_sincos(timestep, self.action_in_proj.out_features, min_period=4e-3, max_period=4.0)
         if self.pi05:
-            # time MLP (for adaRMS)
+            # CN: pi0.5 通过 adaRMS 条件向量注入时间信息。
+            # EN: pi0.5 injects time conditioning through the adaRMS conditioning vector.
             time_emb = self.time_mlp_in(time_emb)
             time_emb = nnx.swish(time_emb)
             time_emb = self.time_mlp_out(time_emb)
@@ -174,7 +180,8 @@ class Pi0(_model.BaseModel):
             action_expert_tokens = action_tokens
             adarms_cond = time_emb
         else:
-            # mix timestep + action information using an MLP (no adaRMS)
+            # CN: pi0 将 [action, time] 拼接后经 MLP 融合，不使用 adaRMS。
+            # EN: pi0 concatenates [action, time] and fuses them with an MLP (no adaRMS).
             time_tokens = einops.repeat(time_emb, "b emb -> b s emb", s=self.action_horizon)
             action_time_tokens = jnp.concatenate([action_tokens, time_tokens], axis=-1)
             action_time_tokens = self.action_time_mlp_in(action_time_tokens)
@@ -191,7 +198,6 @@ class Pi0(_model.BaseModel):
         ar_mask = jnp.array(ar_mask)
         return tokens, input_mask, ar_mask, adarms_cond
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def compute_loss(
         self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
@@ -203,10 +209,17 @@ class Pi0(_model.BaseModel):
         noise = jax.random.normal(noise_rng, actions.shape)
         time = jax.random.beta(time_rng, 1.5, 1, batch_shape) * 0.999 + 0.001
         time_expanded = time[..., None, None]
+        # CN: Conditional Flow Matching 路径：
+        #     x_t = t*x_1 + (1-t)*x_0，其中 x_1 是噪声、x_0 是真实动作。
+        # EN: Conditional Flow Matching path:
+        #     x_t = t*x_1 + (1-t)*x_0, where x_1 is noise and x_0 is ground-truth actions.
+        # CN: 监督目标是速度场 u_t = x_1 - x_0。
+        # EN: The supervision target is the velocity field u_t = x_1 - x_0.
         x_t = time_expanded * noise + (1 - time_expanded) * actions
         u_t = noise - actions
 
-        # one big forward pass of prefix + suffix at once
+        # CN: 训练时把 prefix + suffix 拼成一次前向，避免重复计算。
+        # EN: During training, run a single forward pass over prefix + suffix together.
         prefix_tokens, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
         suffix_tokens, suffix_mask, suffix_ar_mask, adarms_cond = self.embed_suffix(observation, x_t, time)
         input_mask = jnp.concatenate([prefix_mask, suffix_mask], axis=1)
@@ -220,7 +233,6 @@ class Pi0(_model.BaseModel):
 
         return jnp.mean(jnp.square(v_t - u_t), axis=-1)
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def sample_actions(
         self,
@@ -231,40 +243,41 @@ class Pi0(_model.BaseModel):
         noise: at.Float[at.Array, "b ah ad"] | None = None,
     ) -> _model.Actions:
         observation = _model.preprocess_observation(None, observation, train=False)
-        # note that we use the convention more common in diffusion literature, where t=1 is noise and t=0 is the target
-        # distribution. yes, this is the opposite of the pi0 paper, and I'm sorry.
+        # CN: 这里采用扩散文献常用约定：t=1 为噪声端，t=0 为目标动作端。
+        # EN: We follow the diffusion-style convention: t=1 is the noisy end, t=0 is the target action end.
         dt = -1.0 / num_steps
         batch_size = observation.state.shape[0]
         if noise is None:
             noise = jax.random.normal(rng, (batch_size, self.action_horizon, self.action_dim))
 
-        # first fill KV cache with a forward pass of the prefix
+        # CN: 先用 prefix 预填充 KV cache，后续迭代时只需更新 suffix，推理更快。
+        # EN: Prefill KV cache with prefix tokens so iterative denoising only updates suffix tokens.
         prefix_tokens, prefix_mask, prefix_ar_mask = self.embed_prefix(observation)
         prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
         positions = jnp.cumsum(prefix_mask, axis=1) - 1
         _, kv_cache = self.PaliGemma.llm([prefix_tokens, None], mask=prefix_attn_mask, positions=positions)
 
-        # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
         def step(carry):
             x_t, time = carry
             suffix_tokens, suffix_mask, suffix_ar_mask, adarms_cond = self.embed_suffix(
                 observation, x_t, jnp.broadcast_to(time, batch_size)
             )
-            # `suffix_attn_mask` is shape (b, suffix_len, suffix_len) indicating how the suffix tokens can attend to each
-            # other
+            # CN: suffix 自注意力掩码，控制 suffix token 之间的可见性。
+            # EN: Suffix self-attention mask controlling visibility among suffix tokens.
             suffix_attn_mask = make_attn_mask(suffix_mask, suffix_ar_mask)
-            # `prefix_attn_mask` is shape (b, suffix_len, prefix_len) indicating how the suffix tokens can attend to the
-            # prefix tokens
+            # CN: suffix->prefix 跨段注意力掩码，控制 suffix 对 prefix 的可见性。
+            # EN: Cross attention mask from suffix queries to prefix keys/values.
             prefix_attn_mask = einops.repeat(prefix_mask, "b p -> b s p", s=suffix_tokens.shape[1])
-            # `combined_mask` is shape (b, suffix_len, prefix_len + suffix_len) indicating how the suffix tokens (which
-            # generate the queries) can attend to the full prefix + suffix sequence (which generates the keys and values)
+            # CN: 拼接得到完整掩码：suffix query 可见 prefix+suffix 的哪些 token。
+            # EN: Concatenate into the full mask for suffix queries over prefix+suffix keys/values.
             full_attn_mask = jnp.concatenate([prefix_attn_mask, suffix_attn_mask], axis=-1)
             assert full_attn_mask.shape == (
                 batch_size,
                 suffix_tokens.shape[1],
                 prefix_tokens.shape[1] + suffix_tokens.shape[1],
             )
-            # `positions` is shape (b, suffix_len) indicating the positions of the suffix tokens
+            # CN: suffix 的 position_id 从 prefix 的有效长度继续计数。
+            # EN: Suffix position ids continue counting from effective prefix length.
             positions = jnp.sum(prefix_mask, axis=-1)[:, None] + jnp.cumsum(suffix_mask, axis=-1) - 1
 
             (prefix_out, suffix_out), _ = self.PaliGemma.llm(
@@ -279,10 +292,10 @@ class Pi0(_model.BaseModel):
 
             return x_t + dt * v_t, time + dt
 
-        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
         def cond(carry):
             x_t, time = carry
-            # robust to floating-point error
+            # CN: 终止条件留出半步裕量，避免浮点误差导致多跑/少跑一步。
+            # EN: Keep a half-step margin to make loop termination robust to floating-point error.
             return time >= -dt / 2
 
         x_0, _ = jax.lax.while_loop(cond, step, (noise, 1.0))

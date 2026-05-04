@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
 import math
 import re
 
@@ -7,9 +6,11 @@ import flax.struct as struct
 import jax.numpy as jnp
 
 import openpi.shared.array_typing as at
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
+
 @struct.dataclass
 class LoRAConfig:
     """Configuration for LoRA."""
@@ -27,13 +28,11 @@ class LoRAConfig:
     # Axis label which is used by LoRA in einsum equations. Must not be present in the original equation.
     label: str = "L"
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def scaling_value(self) -> float:
         return self.alpha / math.sqrt(self.rank) if self.rslora else self.alpha / self.rank
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class Einsum(nn.Module):
     """Einsum with LoRA support. Can be used as a drop-in replacement for the Gemma Einsum."""
 
@@ -44,7 +43,6 @@ class Einsum(nn.Module):
     # If not None, apply LoRA to the weight.
     lora_config: LoRAConfig | None = None
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         self.w = self.param("w", self.init_fn, self.shape)
 
@@ -56,7 +54,6 @@ class Einsum(nn.Module):
             self.w_a = self.param("lora_a", config.init_fn, shape_a)
             self.w_b = self.param("lora_b", config.init_fn, shape_b)
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, eqn: str, x):
         dtype = x.dtype  # original dtype, could be half-precision
@@ -70,7 +67,6 @@ class Einsum(nn.Module):
 
         return result
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     def _make_lora_eqns(self, eqn: str) -> tuple[str, str]:
         if "L" in eqn:
             raise ValueError(f"L already in eqn: {eqn}")
@@ -92,7 +88,6 @@ class Einsum(nn.Module):
         return eqn_a, eqn_b
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class FeedForward(nn.Module):
     """Feed forward module."""
 
@@ -101,7 +96,6 @@ class FeedForward(nn.Module):
     # If not None, apply LoRA to the weight.
     lora_config: LoRAConfig | None = None
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         self.w_gating = self.param(
             "gating_einsum",
@@ -129,7 +123,6 @@ class FeedForward(nn.Module):
                 self.param("linear_lora_b", self.lora_config.init_fn, (self.lora_config.rank, self.features)),
             )
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x):
         dtype = x.dtype  # original dtype, could be half-precision
@@ -151,7 +144,6 @@ class FeedForward(nn.Module):
         assert outputs.dtype == dtype
         return outputs
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def _dot(self, x: at.Array, w: at.Array, lora_weights: tuple[at.Array, at.Array] | None) -> at.Array:
         base = jnp.dot(x, w.astype(x.dtype))
         if lora_weights is None:

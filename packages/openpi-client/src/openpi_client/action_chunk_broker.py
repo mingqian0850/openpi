@@ -1,4 +1,7 @@
-﻿# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
+# CN: 实现 action_chunk_broker 的核心逻辑与工具（packages/openpi-client/src/openpi_client/action_chunk_broker.py）。
+# EN: Implements core logic and utilities for action_chunk_broker (packages/openpi-client/src/openpi_client/action_chunk_broker.py).
+
+# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
 from typing import Dict
 
 import numpy as np

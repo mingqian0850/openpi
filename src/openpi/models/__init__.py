@@ -1,2 +1,4 @@
-﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
+# CN: 模块说明 - 该文件用于初始化 models 包并暴露公共接口。
+# EN: Module summary - This file initializes the models package and exposes public interfaces.
+
 

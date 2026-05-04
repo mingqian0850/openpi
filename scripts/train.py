@@ -1,4 +1,7 @@
-﻿# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
+# CN: 实现 train 的核心逻辑与工具（scripts/train.py）。
+# EN: Implements core logic and utilities for train (scripts/train.py).
+
+# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
 import dataclasses
 import functools
 import logging
@@ -121,6 +124,8 @@ def init_train_state(
         )
 
     train_state_shape = jax.eval_shape(init, init_rng)
+    # CN: 先在 shape 层面推导分片策略，避免真实参数初始化阶段触发不必要通信。
+    # EN: Derive sharding from shapes first to avoid unnecessary communication during real parameter initialization.
     state_sharding = sharding.fsdp_sharding(train_state_shape, mesh, log=True)
 
     if resume:
@@ -162,6 +167,8 @@ def train_step(
     train_rng = jax.random.fold_in(rng, state.step)
     observation, actions = batch
 
+    # CN: 仅对可训练参数求梯度，冻结参数保持常量以匹配配置预期。
+    # EN: Differentiate only trainable parameters while keeping frozen parameters constant per configuration.
     # Filter out frozen params.
     diff_state = nnx.DiffState(0, config.trainable_filter)
     loss, grads = nnx.value_and_grad(loss_fn, argnums=diff_state)(model, train_rng, observation, actions)
@@ -176,6 +183,8 @@ def train_step(
 
     new_state = dataclasses.replace(state, step=state.step + 1, params=new_params, opt_state=new_opt_state)
     if state.ema_decay is not None:
+        # CN: EMA 平滑权重用于提升推理稳定性，训练中与主参数并行维护。
+        # EN: EMA-smoothed weights are maintained alongside main parameters to improve inference stability.
         new_state = dataclasses.replace(
             new_state,
             ema_params=jax.tree.map(
@@ -279,6 +288,8 @@ def main(config: _config.TrainConfig):
             infos = []
         batch = next(data_iter)
 
+        # CN: 按固定间隔落盘 checkpoint，最后一步强制保存以保证可恢复性。
+        # EN: Save checkpoints at fixed intervals and force-save the final step for resumability.
         if (step % config.save_interval == 0 and step > start_step) or step == config.num_train_steps - 1:
             _checkpoints.save_state(checkpoint_manager, train_state, data_loader, step)
 

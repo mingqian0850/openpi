@@ -1,4 +1,7 @@
-﻿# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
+# CN: 实现 websocket_client_policy 的核心逻辑与工具（packages/openpi-client/src/openpi_client/websocket_client_policy.py）。
+# EN: Implements core logic and utilities for websocket_client_policy (packages/openpi-client/src/openpi_client/websocket_client_policy.py).
+
+# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
 import logging
 import time
 from typing import Dict, Optional, Tuple

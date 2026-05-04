@@ -1,4 +1,7 @@
-﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
+# CN: 实现 main 的核心逻辑与工具（examples/simple_client/main.py）。
+# EN: Implements core logic and utilities for main (examples/simple_client/main.py).
+
+# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 import dataclasses
 import enum
 import logging

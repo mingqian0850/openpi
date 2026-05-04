@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块提供跨训练和推理复用的基础能力，避免图像、下载、归一化和类型逻辑在各处重复实现。
 import contextlib
 import functools as ft
 import inspect
@@ -22,6 +21,9 @@ from jaxtyping import config
 from jaxtyping import jaxtyped
 import jaxtyping._decorator
 import torch
+# CN: 模块说明 - 跨模块共享工具与基础类型定义。
+# EN: Module summary - Cross-module shared utilities and core typing helpers.
+
 
 # patch jaxtyping to handle https://github.com/patrick-kidger/jaxtyping/issues/277.
 # the problem is that custom PyTree nodes are sometimes initialized with arbitrary types (e.g., `jax.ShapeDtypeStruct`,
@@ -32,7 +34,6 @@ _original_check_dataclass_annotations = jaxtyping._decorator._check_dataclass_an
 Array = jax.Array | torch.Tensor
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _check_dataclass_annotations(self, typechecker):
     if not any(
         frame.frame.f_globals.get("__name__") in {"jax._src.tree_util", "flax.nnx.transforms.compilation"}
@@ -51,12 +52,10 @@ T = TypeVar("T")
 
 
 # runtime type-checking decorator
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def typecheck(t: T) -> T:
     return cast(T, ft.partial(jaxtyped, typechecker=beartype.beartype)(t))
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 @contextlib.contextmanager
 def disable_typechecking():
     initial = config.jaxtyping_disable
@@ -65,7 +64,6 @@ def disable_typechecking():
     config.update("jaxtyping_disable", initial)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def check_pytree_equality(*, expected: PyTree, got: PyTree, check_shapes: bool = False, check_dtypes: bool = False):
     """Checks that two PyTrees have the same structure and optionally checks shapes and dtypes. Creates a much nicer
     error message than if `jax.tree.map` is naively used on PyTrees with different structures.
@@ -84,7 +82,6 @@ def check_pytree_equality(*, expected: PyTree, got: PyTree, check_shapes: bool =
 
     if check_shapes or check_dtypes:
 
-        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
         def check(kp, x, y):
             if check_shapes and x.shape != y.shape:
                 raise ValueError(f"Shape mismatch at {jax.tree_util.keystr(kp)}: expected {x.shape}, got {y.shape}")

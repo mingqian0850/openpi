@@ -1,11 +1,12 @@
-﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 import flax.nnx as nnx
 import jax
 
 import openpi.models.pi0_config as _pi0_config
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
+
 def _get_frozen_state(config: _pi0_config.Pi0Config) -> nnx.State:
     abstract_model = nnx.eval_shape(config.create, jax.random.key(0))
 
@@ -13,14 +14,12 @@ def _get_frozen_state(config: _pi0_config.Pi0Config) -> nnx.State:
     return nnx.state(abstract_model, nnx.All(nnx.Param, freeze_filter)).flat_state()
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pi0_full_finetune():
     config = _pi0_config.Pi0Config()
     state = _get_frozen_state(config)
     assert len(state) == 0
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pi0_gemma_lora():
     config = _pi0_config.Pi0Config(paligemma_variant="gemma_2b_lora")
     state = _get_frozen_state(config)
@@ -30,7 +29,6 @@ def test_pi0_gemma_lora():
     assert all("_1" not in p for p in state)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pi0_action_expert_lora():
     config = _pi0_config.Pi0Config(action_expert_variant="gemma_300m_lora")
     state = _get_frozen_state(config)
@@ -42,7 +40,6 @@ def test_pi0_action_expert_lora():
     assert all(any("_1" in p for p in path) for path in state)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pi0_all_lora():
     config = _pi0_config.Pi0Config(paligemma_variant="gemma_2b_lora", action_expert_variant="gemma_300m_lora")
     state = _get_frozen_state(config)

@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块位于训练层，负责把配置、数据、优化器、分片或 checkpoint 组合成可恢复的训练流程。
 """See _CONFIGS for the list of available configs."""
 
 import abc
@@ -29,13 +28,15 @@ import openpi.training.misc.roboarena_config as roboarena_config
 import openpi.training.optimizer as _optimizer
 import openpi.training.weight_loaders as weight_loaders
 import openpi.transforms as _transforms
+# CN: 模块说明 - 训练数据、优化、分片与检查点流程。
+# EN: Module summary - Training data, optimization, sharding, and checkpoint flows.
+
 
 ModelType: TypeAlias = _model.ModelType
 # Work around a tyro issue with using nnx.filterlib.Filter directly.
 Filter: TypeAlias = nnx.filterlib.Filter
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class AssetsConfig:
     """Determines the location of assets (e.g., norm stats) that will be used to set up the data pipeline.
@@ -63,7 +64,6 @@ class AssetsConfig:
     asset_id: str | None = None
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class DataConfig:
     # LeRobot repo id. If None, fake data will be created.
@@ -101,13 +101,11 @@ class DataConfig:
     datasets: Sequence[droid_rlds_dataset.RLDSDataset] = ()
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 class GroupFactory(Protocol):
     def __call__(self, model_config: _model.BaseModelConfig) -> _transforms.Group:
         """Create a group."""
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class ModelTransformFactory(GroupFactory):
     """Creates model transforms for standard pi0 models."""
@@ -115,7 +113,6 @@ class ModelTransformFactory(GroupFactory):
     # If provided, will determine the default prompt that be used by the model.
     default_prompt: str | None = None
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, model_config: _model.BaseModelConfig) -> _transforms.Group:
         match model_config.model_type:
             case _model.ModelType.PI0:
@@ -169,7 +166,6 @@ class ModelTransformFactory(GroupFactory):
                 )
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class DataConfigFactory(abc.ABC):
     # The LeRobot repo id.
@@ -179,12 +175,10 @@ class DataConfigFactory(abc.ABC):
     # Base config that will be updated by the factory.
     base_config: tyro.conf.Suppress[DataConfig | None] = None
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @abc.abstractmethod
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         """Create a data config."""
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     def create_base_config(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         repo_id = self.repo_id if self.repo_id is not tyro.MISSING else None
         asset_id = self.assets.asset_id or repo_id
@@ -196,7 +190,6 @@ class DataConfigFactory(abc.ABC):
             use_quantile_norm=model_config.model_type != ModelType.PI0,
         )
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def _load_norm_stats(self, assets_dir: epath.Path, asset_id: str | None) -> dict[str, _transforms.NormStats] | None:
         if asset_id is None:
             return None
@@ -210,18 +203,15 @@ class DataConfigFactory(abc.ABC):
         return None
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class FakeDataConfig(DataConfigFactory):
     repo_id: str = "fake"
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         return DataConfig(repo_id=self.repo_id)
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class SimpleDataConfig(DataConfigFactory):
     # Factory for the data transforms.
@@ -229,7 +219,6 @@ class SimpleDataConfig(DataConfigFactory):
     # Factory for the model transforms.
     model_transforms: tyro.conf.Suppress[GroupFactory] = dataclasses.field(default_factory=ModelTransformFactory)
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         return dataclasses.replace(
@@ -239,7 +228,6 @@ class SimpleDataConfig(DataConfigFactory):
         )
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class LeRobotAlohaDataConfig(DataConfigFactory):
     # If true, will convert joint dimensions to deltas with respect to the current state before passing to the model.
@@ -269,7 +257,6 @@ class LeRobotAlohaDataConfig(DataConfigFactory):
     # Action keys that will be used to read the action sequence from the dataset.
     action_sequence_keys: Sequence[str] = ("action",)
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         data_transforms = _transforms.Group(
@@ -294,7 +281,6 @@ class LeRobotAlohaDataConfig(DataConfigFactory):
         )
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class LeRobotLiberoDataConfig(DataConfigFactory):
     """
@@ -305,7 +291,6 @@ class LeRobotLiberoDataConfig(DataConfigFactory):
 
     extra_delta_transform: bool = False
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         # The repack transform is *only* applied to the data coming from the dataset,
@@ -373,7 +358,6 @@ class LeRobotLiberoDataConfig(DataConfigFactory):
         )
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class RLDSDroidDataConfig(DataConfigFactory):
     """
@@ -397,7 +381,6 @@ class RLDSDroidDataConfig(DataConfigFactory):
         ),
     )
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         repack_transform = _transforms.Group(
@@ -443,7 +426,6 @@ class RLDSDroidDataConfig(DataConfigFactory):
         )
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class LeRobotDROIDDataConfig(DataConfigFactory):
     """
@@ -451,7 +433,6 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
     To convert your custom DROID dataset (<10s of hours) to LeRobot format, see examples/droid/convert_droid_data_to_lerobot.py
     """
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, assets_dirs: pathlib.Path, model_config: _model.BaseModelConfig) -> DataConfig:
         repack_transform = _transforms.Group(
@@ -484,7 +465,6 @@ class LeRobotDROIDDataConfig(DataConfigFactory):
         )
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class TrainConfig:
     # Name of the config. Must be unique. Will be used to reference this config.
@@ -557,13 +537,11 @@ class TrainConfig:
     # data parallel between 2 groups of devices.
     fsdp_devices: int = 1
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def assets_dirs(self) -> pathlib.Path:
         """Get the assets directory for this config."""
         return (pathlib.Path(self.assets_base_dir) / self.name).resolve()
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     @property
     def checkpoint_dir(self) -> pathlib.Path:
         """Get the checkpoint directory for this config."""
@@ -571,13 +549,11 @@ class TrainConfig:
             raise ValueError("--exp_name must be set")
         return (pathlib.Path(self.checkpoint_base_dir) / self.name / self.exp_name).resolve()
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     @property
     def trainable_filter(self) -> nnx.filterlib.Filter:
         """Get the filter for the trainable parameters."""
         return nnx.All(nnx.Param, nnx.Not(self.freeze_filter))
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __post_init__(self) -> None:
         if self.resume and self.overwrite:
             raise ValueError("Cannot resume and overwrite at the same time.")
@@ -1002,12 +978,10 @@ if len({config.name for config in _CONFIGS}) != len(_CONFIGS):
 _CONFIGS_DICT = {config.name: config for config in _CONFIGS}
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def cli() -> TrainConfig:
     return tyro.extras.overridable_config_cli({k: (k, v) for k, v in _CONFIGS_DICT.items()})
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_config(config_name: str) -> TrainConfig:
     """Get a config by name."""
     if config_name not in _CONFIGS_DICT:

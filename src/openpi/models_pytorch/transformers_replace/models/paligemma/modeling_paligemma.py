@@ -1,5 +1,7 @@
-﻿# coding=utf-8
-# [解读]: 该模块承接 PyTorch 版本模型路径，让同一套训练配置可以服务非 JAX 的权重加载、预处理与推理。
+# CN: 模块说明 - PaliGemma Transformers 替换建模实现。
+# EN: Module summary - PaliGemma transformer replacement modeling implementation.
+
+# coding=utf-8
 # Copyright 2024 the HuggingFace Inc. team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -42,7 +44,6 @@ logger = logging.get_logger(__name__)
     Base class for Paligemma outputs, with hidden states and attentions.
     """
 )
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class PaligemmaModelOutputWithPast(BaseModelOutputWithPast):
     r"""
     past_key_values (`tuple(tuple(torch.FloatTensor))`, *optional*, returned when `use_cache=True` is passed or when `config.use_cache=True`):
@@ -65,7 +66,6 @@ class PaligemmaModelOutputWithPast(BaseModelOutputWithPast):
     Base class for PaliGemma causal language model (or autoregressive) outputs.
     """
 )
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class PaliGemmaCausalLMOutputWithPast(ModelOutput):
     r"""
     loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `labels` is provided):
@@ -91,20 +91,17 @@ class PaliGemmaCausalLMOutputWithPast(ModelOutput):
     image_hidden_states: Optional[torch.FloatTensor] = None
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class PaliGemmaMultiModalProjector(nn.Module):
     def __init__(self, config: PaliGemmaConfig):
         super().__init__()
         self.linear = nn.Linear(config.vision_config.hidden_size, config.vision_config.projection_dim, bias=True)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(self, image_features):
         hidden_states = self.linear(image_features)
 
         return hidden_states
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @auto_docstring
 class PaliGemmaPreTrainedModel(PreTrainedModel):
     config_class = PaliGemmaConfig
@@ -120,7 +117,6 @@ class PaliGemmaPreTrainedModel(PreTrainedModel):
     _supports_flex_attn = True
     _supports_attention_backend = True
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     def _init_weights(self, module):
         # important: this ported version of PaliGemmaisn't meant for training from scratch - only
         # inference and fine-tuning
@@ -137,13 +133,11 @@ class PaliGemmaPreTrainedModel(PreTrainedModel):
     The Base Paligemma model which consists of a vision backbone and a language model withou language modeling head.,
     """
 )
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class PaliGemmaModel(PaliGemmaPreTrainedModel):
     _checkpoint_conversion_mapping = {"language_model.model": "language_model"}
     # we are filtering the logits/labels so we shouldn't divide the loss based on num_items_in_batch
     accepts_loss_kwargs = False
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config: PaliGemmaConfig):
         super().__init__(config)
         self.vision_tower = AutoModel.from_config(config=config.vision_config)
@@ -157,24 +151,19 @@ class PaliGemmaModel(PaliGemmaPreTrainedModel):
         self.post_init()
 
     # Copied from transformers.models.llava.modeling_llava.LlavaModel.get_input_embeddings with Llava->PaliGemma
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_input_embeddings(self):
         return self.language_model.get_input_embeddings()
 
     # Copied from transformers.models.llava.modeling_llava.LlavaModel.set_input_embeddings with Llava->PaliGemma
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_input_embeddings(self, value):
         self.language_model.set_input_embeddings(value)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_decoder(self, decoder):
         self.language_model = decoder
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_decoder(self):
         return self.language_model
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def _update_causal_mask(
         self,
         attention_mask,
@@ -243,7 +232,6 @@ class PaliGemmaModel(PaliGemmaPreTrainedModel):
 
         return causal_mask
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_image_features(self, pixel_values: torch.FloatTensor):
         """
         Obtains image last hidden states from the vision tower and apply multimodal projection.
@@ -259,7 +247,6 @@ class PaliGemmaModel(PaliGemmaPreTrainedModel):
         image_features = self.multi_modal_projector(selected_image_feature)
         return image_features
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     @auto_docstring
     def forward(
@@ -385,7 +372,6 @@ class PaliGemmaModel(PaliGemmaPreTrainedModel):
         )
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
 
 
@@ -394,7 +380,6 @@ class KwargsForCausalLM(FlashAttentionKwargs, LossKwargs): ...
     The Base Paligemma model which consists of a vision backbone and a language model without language modeling head.,
     """
 )
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class PaliGemmaForConditionalGeneration(PaliGemmaPreTrainedModel, GenerationMixin):
     _checkpoint_conversion_mapping = {
         "^language_model.model": "model.language_model",
@@ -404,58 +389,46 @@ class PaliGemmaForConditionalGeneration(PaliGemmaPreTrainedModel, GenerationMixi
     }
     _tied_weights_keys = ["lm_head.weight"]
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config: PaliGemmaConfig):
         super().__init__(config)
         self.model = PaliGemmaModel(config)
         self.lm_head = nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
         self.post_init()
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_input_embeddings(self):
         return self.model.get_input_embeddings()
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_input_embeddings(self, value):
         self.model.set_input_embeddings(value)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_output_embeddings(self):
         return self.lm_head
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_output_embeddings(self, new_embeddings):
         self.lm_head = new_embeddings
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_decoder(self, decoder):
         self.model.set_decoder(decoder)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_decoder(self):
         return self.model.get_decoder()
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_image_features(self, pixel_values):
         return self.model.get_image_features(pixel_values)
 
     # Make modules available throught conditional class for BC
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def language_model(self):
         return self.model.language_model
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def vision_tower(self):
         return self.model.vision_tower
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def multi_modal_projector(self):
         return self.model.multi_modal_projector
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     @auto_docstring
     def forward(
@@ -546,7 +519,6 @@ class PaliGemmaForConditionalGeneration(PaliGemmaPreTrainedModel, GenerationMixi
             image_hidden_states=outputs.image_hidden_states,
         )
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def prepare_inputs_for_generation(
         self,
         input_ids,
@@ -595,7 +567,6 @@ class PaliGemmaForConditionalGeneration(PaliGemmaPreTrainedModel, GenerationMixi
 
     @staticmethod
     # Copied from transformers.models.gptj.modeling_gptj.GPTJModel._prepare_4d_causal_attention_mask_with_cache_position
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def _prepare_4d_causal_attention_mask_with_cache_position(
         attention_mask: torch.Tensor,
         sequence_length: int,

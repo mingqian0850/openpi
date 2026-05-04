@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块位于训练层，负责把配置、数据、优化器、分片或 checkpoint 组合成可恢复的训练流程。
 """PolaRiS baseline policy configs."""
 
 from typing import TypeAlias
@@ -12,11 +11,13 @@ import openpi.training.droid_rlds_dataset as droid_rlds_dataset
 import openpi.training.optimizer as _optimizer
 import openpi.training.weight_loaders as weight_loaders
 import openpi.transforms as _transforms
+# CN: 模块说明 - 训练实验的辅助配置集合。
+# EN: Module summary - Auxiliary training experiment configurations.
+
 
 ModelType: TypeAlias = _model.ModelType
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_polaris_configs():
     # Import here to avoid circular imports.
     from openpi.training.config import AssetsConfig

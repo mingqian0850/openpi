@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块位于训练层，负责把配置、数据、优化器、分片或 checkpoint 组合成可恢复的训练流程。
 from collections.abc import Callable
 from typing import Any
 
@@ -9,9 +8,11 @@ import optax
 
 from openpi.models import model as _model
 from openpi.shared import array_typing as at
+# CN: 模块说明 - 训练数据、优化、分片与检查点流程。
+# EN: Module summary - Training data, optimization, sharding, and checkpoint flows.
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
+
 @at.typecheck
 @struct.dataclass
 class TrainState:
@@ -25,7 +26,6 @@ class TrainState:
     ema_params: nnx.State | None = None
 
 
-# [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
 @at.typecheck
 def tree_to_info(tree: at.PyTree, interp_func: Callable[[Any], str] = str) -> str:
     """Converts a PyTree into a human-readable string for logging. Optionally, `interp_func` can be provided to convert
@@ -35,7 +35,6 @@ def tree_to_info(tree: at.PyTree, interp_func: Callable[[Any], str] = str) -> st
     return "\n".join(f"{jax.tree_util.keystr(path)}: {interp_func(value)}" for path, value in tree)
 
 
-# [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
 @at.typecheck
 def array_tree_to_info(tree: at.PyTree) -> str:
     """Converts a PyTree of arrays into a human-readable string for logging."""

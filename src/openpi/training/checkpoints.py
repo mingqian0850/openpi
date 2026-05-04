@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块位于训练层，负责把配置、数据、优化器、分片或 checkpoint 组合成可恢复的训练流程。
 from __future__ import annotations
 
 import asyncio
@@ -16,12 +15,16 @@ from openpi.shared import array_typing as at
 import openpi.shared.normalize as _normalize
 import openpi.training.data_loader as _data_loader
 import openpi.training.utils as training_utils
+# CN: 模块说明 - 训练数据、优化、分片与检查点流程。
+# EN: Module summary - Training data, optimization, sharding, and checkpoint flows.
 
 
-# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
+
 def initialize_checkpoint_dir(
     checkpoint_dir: epath.Path | str, *, keep_period: int | None, overwrite: bool, resume: bool
 ) -> tuple[ocp.CheckpointManager, bool]:
+    # CN: 统一处理 checkpoint 目录生命周期：覆盖、恢复或报错。
+    # EN: Centralize checkpoint directory lifecycle handling: overwrite, resume, or fail fast.
     checkpoint_dir = epath.Path(checkpoint_dir).resolve()
     resuming = False
     if checkpoint_dir.exists():
@@ -64,14 +67,12 @@ def initialize_checkpoint_dir(
     return mngr, resuming
 
 
-# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def save_state(
     checkpoint_manager: ocp.CheckpointManager,
     state: training_utils.TrainState,
     data_loader: _data_loader.DataLoader,
     step: int,
 ):
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def save_assets(directory: epath.Path):
         # Save the normalization stats.
         data_config = data_loader.data_config()
@@ -79,6 +80,8 @@ def save_state(
         if norm_stats is not None and data_config.asset_id is not None:
             _normalize.save(directory / data_config.asset_id, norm_stats)
 
+    # CN: 将可直接推理的参数单独保存，便于部署侧只加载 params。
+    # EN: Save inference-ready params separately so deployment can load only params.
     # Split params that can be used for inference into a separate item.
     with at.disable_typechecking():
         train_state, params = _split_params(state)
@@ -90,7 +93,6 @@ def save_state(
     checkpoint_manager.save(step, items)
 
 
-# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def restore_state(
     checkpoint_manager: ocp.CheckpointManager,
     state: training_utils.TrainState,
@@ -100,6 +102,8 @@ def restore_state(
     del data_loader
 
     with at.disable_typechecking():
+        # CN: 按保存时相同结构恢复 train_state 与 params，再合并回统一状态。
+        # EN: Restore train_state and params with the same layout used in save, then merge back.
         # Split params that can be used for inference into a separate item.
         train_state, params = _split_params(state)
         restored = checkpoint_manager.restore(
@@ -112,7 +116,6 @@ def restore_state(
     return _merge_params(restored["train_state"], restored["params"])
 
 
-# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def load_norm_stats(assets_dir: epath.Path | str, asset_id: str) -> dict[str, _normalize.NormStats] | None:
     norm_stats_dir = epath.Path(assets_dir) / asset_id
     norm_stats = _normalize.load(norm_stats_dir)
@@ -120,16 +123,13 @@ def load_norm_stats(assets_dir: epath.Path | str, asset_id: str) -> dict[str, _n
     return norm_stats
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class Callback(Protocol):
     def __call__(self, directory: epath.Path) -> None: ...
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class CallbackHandler(ocp.AsyncCheckpointHandler):
     """A CheckpointHandler for calling an arbitrary function asynchronously. Only for saving, not for restoring."""
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def save(self, directory: epath.Path, args: CallbackSave):
         if jax.process_index() == 0:
             args.callback(directory)
@@ -137,25 +137,23 @@ class CallbackHandler(ocp.AsyncCheckpointHandler):
     async def async_save(self, directory: epath.Path, args: CallbackSave) -> list[futures.Future]:
         return [future.CommitFutureAwaitingContractedSignals(asyncio.to_thread(self.save, directory, args))]
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def restore(self, *args, **kwargs):
         raise NotImplementedError("CallbackHandler does not support restore")
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @ocp.args.register_with_handler(CallbackHandler, for_save=True)
 @dataclasses.dataclass
 class CallbackSave(ocp.args.CheckpointArgs):
     callback: Callback
 
 
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @ocp.args.register_with_handler(CallbackHandler, for_restore=True)
 class CallbackRestore(ocp.args.CheckpointArgs): ...
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _split_params(state: training_utils.TrainState) -> tuple[training_utils.TrainState, at.Params]:
+    # CN: 优先拆分 EMA 参数，保证导出权重与推理时行为一致。
+    # EN: Prefer splitting EMA params to keep exported weights aligned with inference behavior.
     if state.ema_params is not None:
         params = state.ema_params
         train_state = dataclasses.replace(state, ema_params=None)
@@ -165,8 +163,9 @@ def _split_params(state: training_utils.TrainState) -> tuple[training_utils.Trai
     return train_state, params
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _merge_params(train_state: training_utils.TrainState, params: dict[str, at.Params]) -> training_utils.TrainState:
+    # CN: 与 _split_params 对偶，按原始分支把参数回填到 train_state。
+    # EN: Dual of _split_params; fill params back into train_state using the original branch.
     # Revert the logic inside `_split_params`. Assumes that existence of `params` means that EMA params were used during the split.
     if train_state.params:
         return dataclasses.replace(train_state, ema_params=params["params"])

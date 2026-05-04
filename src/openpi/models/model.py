@@ -1,4 +1,6 @@
-﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
+
 import abc
 from collections.abc import Sequence
 import dataclasses
@@ -28,7 +30,6 @@ logger = logging.getLogger("openpi")
 ArrayT = TypeVar("ArrayT", bound=jax.Array | torch.Tensor | np.ndarray)
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class ModelType(enum.Enum):
     """Supported model types."""
 
@@ -80,7 +81,6 @@ IMAGE_RESOLUTION = (224, 224)
 #   s = state dimension
 #   l = sequence length
 #
-# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @at.typecheck
 @struct.dataclass
 class Observation(Generic[ArrayT]):
@@ -109,7 +109,6 @@ class Observation(Generic[ArrayT]):
     # Token loss mask (for FAST autoregressive model).
     token_loss_mask: at.Bool[ArrayT, "*b l"] | None = None
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @classmethod
     def from_dict(cls, data: at.PyTree[ArrayT]) -> "Observation[ArrayT]":
         """This method defines the mapping between unstructured data (i.e., nested dict) to the structured Observation format."""
@@ -132,7 +131,6 @@ class Observation(Generic[ArrayT]):
             token_loss_mask=data.get("token_loss_mask"),
         )
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def to_dict(self) -> at.PyTree[ArrayT]:
         """Convert the Observation to a nested dict."""
         result = dataclasses.asdict(self)
@@ -146,7 +144,6 @@ class Observation(Generic[ArrayT]):
 Actions = at.Float[ArrayT, "*b ah ad"]
 
 
-# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def preprocess_observation(
     rng: at.KeyArrayLike | None,
     observation: Observation,
@@ -214,7 +211,6 @@ def preprocess_observation(
     )
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class BaseModelConfig(abc.ABC):
     """Configuration shared by all models. Specific models should inherit from this class, and implement the `create`
@@ -228,18 +224,15 @@ class BaseModelConfig(abc.ABC):
     # Tokenized prompt maximum length.
     max_token_len: int
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     @abc.abstractmethod
     def model_type(self) -> ModelType:
         """The model type."""
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @abc.abstractmethod
     def create(self, rng: at.KeyArrayLike) -> "BaseModel":
         """Create a new model, initializing parameters."""
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def load(self, params: at.Params, *, remove_extra_params: bool = True) -> "BaseModel":
         """Create a model with the given parameters."""
         model = nnx.eval_shape(self.create, jax.random.key(0))
@@ -250,30 +243,25 @@ class BaseModelConfig(abc.ABC):
         state.replace_by_pure_dict(params)
         return nnx.merge(graphdef, state)
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def load_pytorch(self, train_config, weight_path: str):
         logger.info(f"train_config: {train_config}")
         model = pi0_pytorch.PI0Pytorch(config=train_config.model)
         safetensors.torch.load_model(model, weight_path)
         return model
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     @abc.abstractmethod
     def inputs_spec(self, *, batch_size: int = 1) -> tuple[Observation, Actions]:
         """Returns the input specification for the model. Values are jax.ShapeDtypeStruct."""
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def fake_obs(self, batch_size: int = 1) -> Observation:
         observation_spec, _ = self.inputs_spec(batch_size=batch_size)
         return jax.tree.map(lambda x: jnp.ones(x.shape, x.dtype), observation_spec)
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def fake_act(self, batch_size: int = 1) -> Actions:
         _, action_spec = self.inputs_spec(batch_size=batch_size)
         return jax.tree.map(lambda x: jnp.ones(x.shape, x.dtype), action_spec)
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @dataclasses.dataclass
 class BaseModel(nnx.Module, abc.ABC):
     """Base class for all model implementations. Specific models should inherit from this class. They should call
@@ -284,7 +272,6 @@ class BaseModel(nnx.Module, abc.ABC):
     action_horizon: int
     max_token_len: int
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @abc.abstractmethod
     def compute_loss(
         self,
@@ -295,12 +282,10 @@ class BaseModel(nnx.Module, abc.ABC):
         train: bool = False,
     ) -> at.Float[at.Array, "*b ah"]: ...
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @abc.abstractmethod
     def sample_actions(self, rng: at.KeyArrayLike, observation: Observation, **kwargs) -> Actions: ...
 
 
-# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def restore_params(
     params_path: pathlib.Path | str,
     *,

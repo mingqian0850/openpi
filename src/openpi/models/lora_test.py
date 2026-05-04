@@ -1,12 +1,13 @@
-﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
 
 import openpi.models.lora as lora
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
+
 def test_lora_einsum_params_shape():
     shape = (3, 8, 32, 4)  # (3KDH)
     einsum = lora.Einsum(shape)
@@ -33,7 +34,6 @@ def test_lora_einsum_params_shape():
     assert params_lora1["params"]["lora_b"].shape == (3, 2, 32, 4)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_lora_einsum_same_output():
     shape = (3, 8, 32, 4)  # (3KDH)
     einsum = lora.Einsum(shape)
@@ -53,7 +53,6 @@ def test_lora_einsum_same_output():
     assert jnp.allclose(output, output_lora)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_lora_ffn_params_shape():
     ffn = lora.FeedForward(features=8, hidden_dim=32)
     ffn_lora = lora.FeedForward(
@@ -78,7 +77,6 @@ def test_lora_ffn_params_shape():
     assert params_lora["params"]["linear_lora_b"].shape == (2, 8)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_lora_ffn_same_output():
     ffn = lora.FeedForward(features=8, hidden_dim=32)
     ffn_lora = lora.FeedForward(

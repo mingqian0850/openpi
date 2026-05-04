@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
 import logging
 import os
 
@@ -10,9 +9,11 @@ from transformers import AutoProcessor
 
 import openpi.models.utils.fsq_tokenizer as fsq_tokenizer
 import openpi.shared.download as download
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
+
 class PaligemmaTokenizer:
     def __init__(self, max_len: int = 48):
         self._max_len = max_len
@@ -21,7 +22,6 @@ class PaligemmaTokenizer:
         with path.open("rb") as f:
             self._tokenizer = sentencepiece.SentencePieceProcessor(model_proto=f.read())
 
-    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def tokenize(self, prompt: str, state: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
         cleaned_text = prompt.strip().replace("_", " ").replace("\n", " ")
         if state is not None:
@@ -51,7 +51,6 @@ class PaligemmaTokenizer:
         return np.asarray(tokens), np.asarray(mask)
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class FASTTokenizer:
     def __init__(self, max_len: int = 256, fast_tokenizer_path: str = "physical-intelligence/fast"):
         self._max_len = max_len
@@ -65,7 +64,6 @@ class FASTTokenizer:
         self._fast_tokenizer = AutoProcessor.from_pretrained(fast_tokenizer_path, trust_remote_code=True)
         self._fast_skip_tokens = 128  # Skip last 128 tokens in PaliGemma vocab since they are special tokens
 
-    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def tokenize(
         self, prompt: str, state: np.ndarray, actions: np.ndarray | None
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -121,7 +119,6 @@ class FASTTokenizer:
 
         return np.asarray(tokens), np.asarray(token_mask), np.asarray(ar_mask), np.asarray(loss_mask)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def extract_actions(self, tokens: np.ndarray, action_horizon: int, action_dim: int) -> np.ndarray:
         # Decode predicted output tokens
         decoded_tokens = self._paligemma_tokenizer.decode(tokens.tolist())
@@ -139,7 +136,6 @@ class FASTTokenizer:
             [action_tokens.tolist()], time_horizon=action_horizon, action_dim=action_dim
         )[0]
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def _act_tokens_to_paligemma_tokens(self, tokens: np.ndarray | list[int]) -> np.ndarray:
         if isinstance(tokens, list):
             tokens = np.array(tokens)
@@ -152,13 +148,11 @@ class FASTTokenizer:
 ###########################################################################
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class BinningTokenizer:
     """
     Standard RT-2 / OpenVLA style binning tokenizer.
     """
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, max_len: int = 256, n_bins: int = 256):
         self._max_len = max_len
         self._n_bins = n_bins
@@ -170,7 +164,6 @@ class BinningTokenizer:
 
         self._fast_skip_tokens = 128  # Skip last 128 tokens in PaliGemma vocab since they are special tokens
 
-    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def tokenize(
         self, prompt: str, state: np.ndarray, actions: np.ndarray | None
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -229,7 +222,6 @@ class BinningTokenizer:
 
         return np.asarray(tokens), np.asarray(token_mask), np.asarray(ar_mask), np.asarray(loss_mask)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def extract_actions(self, tokens: np.ndarray, action_horizon: int, action_dim: int) -> np.ndarray:
         # Decode predicted output tokens
         decoded_tokens = self._paligemma_tokenizer.decode(tokens.tolist())
@@ -248,20 +240,17 @@ class BinningTokenizer:
         action_tokens = action_tokens[: (action_horizon * action_dim)].reshape([action_horizon, action_dim])
         return action_tokens / self._n_bins * 2 - 1
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def _act_tokens_to_paligemma_tokens(self, tokens: np.ndarray | list[int]) -> np.ndarray:
         if isinstance(tokens, list):
             tokens = np.array(tokens)
         return self._paligemma_tokenizer.vocab_size() - 1 - self._fast_skip_tokens - tokens
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class FSQTokenizer:
     """
     FSQ tokenizer from the FAST paper baselines.
     """
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, max_len: int = 256, fsq_tokenizer_path: str | None = None):
         self._max_len = max_len
 
@@ -311,7 +300,6 @@ class FSQTokenizer:
 
         self._fast_skip_tokens = 128  # Skip last 128 tokens in PaliGemma vocab since they are special tokens
 
-    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def tokenize(
         self, prompt: str, state: np.ndarray, actions: np.ndarray | None
     ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -357,7 +345,6 @@ class FSQTokenizer:
 
         return np.asarray(tokens), np.asarray(token_mask), np.asarray(ar_mask), np.asarray(loss_mask)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def extract_actions(self, tokens: np.ndarray, action_horizon: int, action_dim: int) -> np.ndarray:
         # Decode predicted output tokens
         decoded_tokens = self._paligemma_tokenizer.decode(tokens.tolist())
@@ -381,7 +368,6 @@ class FSQTokenizer:
             logging.warning(f"Error decoding FSQ: {e}")
             return np.zeros((action_horizon, action_dim))
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def _act_tokens_to_paligemma_tokens(self, tokens: np.ndarray | list[int]) -> np.ndarray:
         if isinstance(tokens, list):
             tokens = np.array(tokens)

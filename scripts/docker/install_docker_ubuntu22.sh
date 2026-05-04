@@ -1,5 +1,6 @@
 ﻿#!/bin/bash
-# [解读]: 该 Shell 脚本封装系统依赖安装或容器环境准备步骤，减少手动配置带来的环境漂移。
+# CN: 安装并配置 Ubuntu 22.04 的 Docker 运行环境（含开机自启与当前用户权限）。
+# EN: Install and configure Docker runtime on Ubuntu 22.04, including autostart and user permissions.
 
 # Add Docker's official GPG key:
 sudo apt-get update

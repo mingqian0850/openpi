@@ -1,4 +1,7 @@
-﻿# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
+# CN: 实现 train_pytorch 的核心逻辑与工具（scripts/train_pytorch.py）。
+# EN: Implements core logic and utilities for train_pytorch (scripts/train_pytorch.py).
+
+# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
 """
 PyTorch training entrypoint for PI0/PI05 with multi-GPU and multi-node (DDP) support.
 This script mirrors the behavior of the JAX trainer (`scripts/train.py`) but runs

@@ -1,12 +1,13 @@
-﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 import numpy as np
 import pytest
 
 import openpi.models.tokenizer as _tokenizer
 import openpi.transforms as _transforms
+# CN: 模块说明 - 数据变换、归一化与提示词处理组件。
+# EN: Module summary - Data transforms, normalization, and prompt processing components.
 
 
-# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
+
 def test_repack_transform():
     transform = _transforms.RepackTransform(
         structure={
@@ -18,7 +19,6 @@ def test_repack_transform():
     assert transform(item) == {"a": {"b": 1}, "d": 2}
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_delta_actions():
     item = {"state": np.array([1, 2, 3]), "actions": np.array([[3, 4, 5], [5, 6, 7]])}
 
@@ -29,7 +29,6 @@ def test_delta_actions():
     assert np.all(transformed["actions"] == np.array([[3, 2, 5], [5, 4, 7]]))
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_delta_actions_noop():
     item = {"state": np.array([1, 2, 3]), "actions": np.array([[3, 4, 5], [5, 6, 7]])}
 
@@ -43,7 +42,6 @@ def test_delta_actions_noop():
     assert transform(item) is item
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_absolute_actions():
     item = {"state": np.array([1, 2, 3]), "actions": np.array([[3, 4, 5], [5, 6, 7]])}
 
@@ -54,7 +52,6 @@ def test_absolute_actions():
     assert np.all(transformed["actions"] == np.array([[3, 6, 5], [5, 8, 7]]))
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_absolute_actions_noop():
     item = {"state": np.array([1, 2, 3]), "actions": np.array([[3, 4, 5], [5, 6, 7]])}
 
@@ -68,13 +65,11 @@ def test_absolute_actions_noop():
     assert transform(item) is item
 
 
-# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def test_make_bool_mask():
     assert _transforms.make_bool_mask(2, -2, 2) == (True, True, False, False, True, True)
     assert _transforms.make_bool_mask(2, 0, 2) == (True, True, True, True)
 
 
-# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def test_tokenize_prompt():
     tokenizer = _tokenizer.PaligemmaTokenizer(max_len=12)
     transform = _transforms.TokenizePrompt(tokenizer)
@@ -86,7 +81,6 @@ def test_tokenize_prompt():
     assert np.allclose(tok_mask, data["tokenized_prompt_mask"])
 
 
-# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def test_tokenize_no_prompt():
     transform = _transforms.TokenizePrompt(_tokenizer.PaligemmaTokenizer())
 
@@ -94,7 +88,6 @@ def test_tokenize_no_prompt():
         transform({})
 
 
-# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def test_transform_dict():
     # Rename and remove keys.
     input = {"a": {"b": 1, "c": 2}}
@@ -121,7 +114,6 @@ def test_transform_dict():
     assert output == {"a": {"b": 1, "d": 1}, "b": {"d": 2}}
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_extract_prompt_from_task():
     transform = _transforms.PromptFromLeRobotTask({1: "Hello, world!"})
 

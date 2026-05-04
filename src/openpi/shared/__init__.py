@@ -1,2 +1,4 @@
-﻿# [解读]: 该模块提供跨训练和推理复用的基础能力，避免图像、下载、归一化和类型逻辑在各处重复实现。
+# CN: 模块说明 - 该文件用于初始化 shared 包并暴露公共接口。
+# EN: Module summary - This file initializes the shared package and exposes public interfaces.
+
 

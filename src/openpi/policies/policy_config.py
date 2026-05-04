@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块位于策略适配层，负责把机器人环境字段和模型统一输入输出格式互相转换。
 import logging
 import os
 import pathlib
@@ -12,9 +11,11 @@ import openpi.shared.download as download
 from openpi.training import checkpoints as _checkpoints
 from openpi.training import config as _config
 import openpi.transforms as transforms
+# CN: 模块说明 - 策略推理封装与任务策略实现。
+# EN: Module summary - Policy inference wrappers and task policy implementations.
 
 
-# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
+
 def create_trained_policy(
     train_config: _config.TrainConfig,
     checkpoint_dir: pathlib.Path | str,

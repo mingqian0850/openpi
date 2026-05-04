@@ -1,4 +1,7 @@
-﻿# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
+# CN: 实现 compute_norm_stats 的核心逻辑与工具（scripts/compute_norm_stats.py）。
+# EN: Implements core logic and utilities for compute_norm_stats (scripts/compute_norm_stats.py).
+
+# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
 """Compute normalization statistics for a config.
 
 This script is used to compute the normalization statistics for a given config. It

@@ -1,4 +1,6 @@
-﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
+# CN: 模块说明 - 核心模型结构、配置与测试逻辑。
+# EN: Module summary - Core model architectures, configs, and tests.
+
 import dataclasses
 import logging
 from typing import Any
@@ -21,7 +23,6 @@ logger = logging.getLogger("openpi")
 PALIGEMMA_EOS_TOKEN = 1
 
 
-# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_attn_mask(input_mask, mask_ar):
     """Adapted from big_vision.
 
@@ -43,6 +44,8 @@ def make_attn_mask(input_mask, mask_ar):
       mask_ar: bool[?B, N] mask that's true where previous tokens cannot depend on
         it and false where it shares the same attention mask as the previous token.
     """
+    # CN: 把 1D 的 AR 标记展开为 2D token 可见性矩阵。
+    # EN: Expand 1D AR markers into a 2D token-visibility matrix.
     mask_ar = jnp.broadcast_to(mask_ar, input_mask.shape)
     cumsum = jnp.cumsum(mask_ar, axis=1)
     attn_mask = cumsum[:, None, :] <= cumsum[:, :, None]
@@ -50,7 +53,6 @@ def make_attn_mask(input_mask, mask_ar):
     return jnp.logical_and(attn_mask, valid_mask)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 @jax.vmap
 def left_to_right_align(x, input_mask, attn_mask):
     """Converts input from left-align to right-aligned."""
@@ -60,6 +62,8 @@ def left_to_right_align(x, input_mask, attn_mask):
     assert attn_mask.ndim == 2
     assert x.shape[0] == input_mask.shape[0]
     assert attn_mask.shape[0] == attn_mask.shape[1], attn_mask.shape
+    # CN: 把有效 token 右对齐，便于后续 prefill+decode 使用固定缓存布局。
+    # EN: Right-align valid tokens for a stable prefill+decode cache layout.
     seqlen = jnp.max(input_mask * jnp.arange(input_mask.shape[0])) + 1
     x = jnp.roll(x, -seqlen, axis=0)
     input_mask = jnp.roll(input_mask, -seqlen, axis=0)
@@ -67,7 +71,6 @@ def left_to_right_align(x, input_mask, attn_mask):
     return x, input_mask, attn_mask
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def put_along_last_axis(arr, indices, values):
     """Like np.put_along_axis(..., axis=-1), since jax is missing it."""
     assert arr.ndim == indices.ndim == values.ndim, (arr.ndim, indices.ndim, values.ndim)
@@ -77,7 +80,6 @@ def put_along_last_axis(arr, indices, values):
     return jnp.where(put_mask, put_values, arr)
 
 
-# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class Pi0FASTConfig(_model.BaseModelConfig):
     dtype: str = "bfloat16"
@@ -93,18 +95,15 @@ class Pi0FASTConfig(_model.BaseModelConfig):
     # Keyword arguments for the fast model tokenizer.
     fast_model_tokenizer_kwargs: dict[str, Any] | None = None
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     @override
     def model_type(self) -> _model.ModelType:
         return _model.ModelType.PI0_FAST
 
-    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, rng: at.KeyArrayLike) -> "Pi0FAST":
         return Pi0FAST(self, rngs=nnx.Rngs(rng))
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     @override
     def inputs_spec(self, *, batch_size: int = 1) -> tuple[_model.Observation, _model.Actions]:
         image_spec = jax.ShapeDtypeStruct([batch_size, *_model.IMAGE_RESOLUTION, 3], jnp.float32)
@@ -132,7 +131,6 @@ class Pi0FASTConfig(_model.BaseModelConfig):
 
         return observation_spec, action_spec
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def get_freeze_filter(self) -> nnx.filterlib.Filter:
         """Returns the freeze filter based on the model config."""
         if "lora" in self.paligemma_variant:
@@ -140,7 +138,6 @@ class Pi0FASTConfig(_model.BaseModelConfig):
         return nnx.Nothing
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class Pi0FAST(_model.BaseModel):
     def __init__(self, config: Pi0FASTConfig, rngs: nnx.Rngs):
         super().__init__(config.action_dim, config.action_horizon, config.max_token_len)
@@ -166,11 +163,12 @@ class Pi0FAST(_model.BaseModel):
         img.lazy_init(next(iter(config.fake_obs().images.values())), train=False, rngs=rngs)
         self.PaliGemma = nnx.Dict(llm=llm, img=img)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @at.typecheck
     def embed_inputs(
         self, obs: _model.Observation
     ) -> tuple[at.Float[at.Array, "b s emb"], at.Bool[at.Array, "b s"], at.Int[at.Array, "b s"]]:
+        # CN: FAST 统一把图像和文本都作为 token 序列输入同一自回归解码器。
+        # EN: FAST feeds both image and text as token sequences into one autoregressive decoder.
         input_mask = []
         ar_mask = []
         token_embeddings = []
@@ -186,7 +184,8 @@ class Pi0FAST(_model.BaseModel):
                     s=image_token_embeddings.shape[1],
                 )
             )
-            # image tokens attend to each other --> AR mask = 0
+            # CN: FAST 中图像/语言前缀为双向可见，AR 掩码置 0。
+            # EN: In FAST, image/language prefix tokens are bidirectional, so AR mask is 0.
             ar_mask.append(0 * input_mask[-1])
 
         # add tokenized inputs
@@ -205,7 +204,6 @@ class Pi0FAST(_model.BaseModel):
             jnp.concatenate(ar_mask, axis=1),
         )
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def compute_loss(
         self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
@@ -218,7 +216,8 @@ class Pi0FAST(_model.BaseModel):
         input_token_embeddings, input_mask, ar_mask = self.embed_inputs(observation)
         attn_mask = make_attn_mask(input_mask, ar_mask)
 
-        # Compute one-hot targets: we predict *next* token, so shift the input tokens by one.
+        # CN: 预测下一个 token，因此目标是输入序列左移一位。
+        # EN: We predict the next token, so targets are the input sequence shifted by one.
         targets = jax.nn.one_hot(
             observation.tokenized_prompt[:, 1:],
             self.PaliGemma.llm.module.vocab_size,
@@ -231,8 +230,8 @@ class Pi0FAST(_model.BaseModel):
             return_prelogits=True,
         )
 
-        # Only decode logits for the target tokens to save memory
-        # (decoding matmul is large because it is a seq_len x vocab_size dense layer).
+        # CN: 只对目标区间解码 logits，减少 seq_len x vocab_size 大矩阵开销。
+        # EN: Decode logits only for target positions to reduce the large seq_len x vocab_size matmul cost.
         logits, _ = self.PaliGemma.llm(
             pre_logits=pre_logits[:, -targets.shape[1] :],
         )
@@ -244,7 +243,6 @@ class Pi0FAST(_model.BaseModel):
         token_pplx = jnp.sum(targets * logp, axis=-1)
         return -jnp.sum(token_pplx * loss_mask, axis=-1) / jnp.clip(jnp.sum(loss_mask, -1), 1)
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def sample_actions(
         self,
@@ -263,7 +261,8 @@ class Pi0FAST(_model.BaseModel):
         prefix_token_embeddings, prefix_mask, prefix_ar_mask = self.embed_inputs(observation)
         prefix_attn_mask = make_attn_mask(prefix_mask, prefix_ar_mask)
 
-        # left to right align all input token sequences
+        # CN: 先右对齐输入，再进行 prefill，便于后续逐 token 解码。
+        # EN: Right-align inputs before prefill for stable token-by-token decoding.
         prefix_token_embeddings, prefix_mask, prefix_attn_mask = left_to_right_align(
             prefix_token_embeddings, prefix_mask, prefix_attn_mask
         )
@@ -271,19 +270,19 @@ class Pi0FAST(_model.BaseModel):
         prefill_len = jnp.sum(prefix_mask, axis=-1)
         prefix_start = prefill_size - prefill_len
 
-        # first fill KV cache with a forward pass of the prefix
-        # pad attention mask to set the size of the KV cache (prefill_size + max_decoding_steps)
+        # CN: 先 prefill KV cache，并提前扩展掩码来预留最大解码长度。
+        # EN: Prefill KV cache first and pre-allocate mask width for max decoding length.
         prefix_attn_mask = jnp.pad(prefix_attn_mask, ((0, 0), (0, 0), (0, max_decoding_steps)))
         prefix_positions = jnp.cumsum(prefix_mask, axis=-1) - 1
         prefix_logits, kv_cache, _ = self.PaliGemma.llm(
             embedded_prefix=prefix_token_embeddings, mask=prefix_attn_mask, positions=prefix_positions, decode=True
         )
 
-        # prepare decoding -- final logit decodes the first token
+        # CN: prefill 的最后一个 logit 作为首个解码步输入。
+        # EN: The final prefill logit is used to decode the first generated token.
         last_logit = prefix_logits[:, -1:]
         output_tokens = jnp.zeros((last_logit.shape[0], max_decoding_steps))
 
-        # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
         def step(carry):
             rng, last_logit, output_tokens, cache, _, step = carry
 
@@ -298,11 +297,13 @@ class Pi0FAST(_model.BaseModel):
             )
             output_tokens = put_along_last_axis(output_tokens, jnp.broadcast_to(step, (token.shape[0], 1)), token)
 
-            # Check for early stopping --> stop if all batch elements have EOS token
+            # CN: 全 batch 均遇到 EOS 时提前停止。
+            # EN: Early-stop when all batch elements have generated EOS.
             has_eos = jnp.any(token == PALIGEMMA_EOS_TOKEN, axis=-1)
             all_eos = jnp.all(has_eos)
 
-            # Decode one step
+            # CN: 单步解码，复用 KV cache。
+            # EN: Decode one step while reusing the KV cache.
             token_embedding = self.PaliGemma.llm(token, embed_only=True)
             positions = prefill_len[:, None] + step + 1
             mask = jnp.logical_and(
@@ -316,12 +317,12 @@ class Pi0FAST(_model.BaseModel):
 
             return rng, last_logit, output_tokens, kv_cache, all_eos, step + 1
 
-        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
         def cond(carry):
             _, _, _, _, all_eos, step = carry
             return (~all_eos) & (step < max_decoding_steps)
 
-        # Use lax.while_loop so we can jit the full decoding loop.
+        # CN: 使用 lax.while_loop 让整段解码循环可 JIT。
+        # EN: Use lax.while_loop so the full decoding loop can be JIT-compiled.
         _, _, output_tokens, _, _, _ = jax.lax.while_loop(
             cond, step, (rng, last_logit, output_tokens, kv_cache, False, 0)
         )

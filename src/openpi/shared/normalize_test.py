@@ -1,10 +1,11 @@
-﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 import numpy as np
 
 import openpi.shared.normalize as normalize
+# CN: 模块说明 - 跨模块共享工具与基础类型定义。
+# EN: Module summary - Cross-module shared utilities and core typing helpers.
 
 
-# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
+
 def test_normalize_update():
     arr = np.arange(12).reshape(4, 3)  # 4 vectors of length 3
 
@@ -17,7 +18,6 @@ def test_normalize_update():
     assert np.allclose(results.std, np.std(arr, axis=0))
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_serialize_deserialize():
     stats = normalize.RunningStats()
     stats.update(np.arange(12).reshape(4, 3))  # 4 vectors of length 3
@@ -28,7 +28,6 @@ def test_serialize_deserialize():
     assert np.allclose(norm_stats["test"].std, norm_stats2["test"].std)
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_multiple_batch_dimensions():
     # Test with multiple batch dimensions: (2, 3, 4) where 4 is vector dimension
     batch_shape = (2, 3, 4)

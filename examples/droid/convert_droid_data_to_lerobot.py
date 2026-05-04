@@ -1,4 +1,7 @@
-﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
+# CN: 实现 convert_droid_data_to_lerobot 的核心逻辑与工具（examples/droid/convert_droid_data_to_lerobot.py）。
+# EN: Implements core logic and utilities for convert_droid_data_to_lerobot (examples/droid/convert_droid_data_to_lerobot.py).
+
+# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 """
 Minimal example script for converting a dataset collected on the DROID platform to LeRobot format.
 

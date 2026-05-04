@@ -1,4 +1,7 @@
-﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
+# CN: 实现 saver 的核心逻辑与工具（examples/aloha_sim/saver.py）。
+# EN: Implements core logic and utilities for saver (examples/aloha_sim/saver.py).
+
+# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 import logging
 import pathlib
 

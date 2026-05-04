@@ -1,4 +1,7 @@
-﻿# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
+# CN: 实现 serve_policy 的核心逻辑与工具（scripts/serve_policy.py）。
+# EN: Implements core logic and utilities for serve_policy (scripts/serve_policy.py).
+
+# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
 import dataclasses
 import enum
 import logging

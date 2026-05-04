@@ -1,5 +1,6 @@
 ﻿#!/bin/bash
-# [解读]: 该 Shell 脚本封装系统依赖安装或容器环境准备步骤，减少手动配置带来的环境漂移。
+# CN: 安装 NVIDIA Container Toolkit，并将 Docker runtime 配置为可访问 GPU。
+# EN: Install NVIDIA Container Toolkit and configure Docker runtime for GPU access.
 
 # Installs the NVIDIA Container Toolkit, which allows Docker containers to access NVIDIA GPUs.
 # NVIDIA's official documentation: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html

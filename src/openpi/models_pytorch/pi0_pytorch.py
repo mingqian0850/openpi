@@ -1,4 +1,6 @@
-﻿# [解读]: 该模块承接 PyTorch 版本模型路径，让同一套训练配置可以服务非 JAX 的权重加载、预处理与推理。
+# CN: 模块说明 - PyTorch 版本模型与预处理流程。
+# EN: Module summary - PyTorch model implementations and preprocessing pipeline.
+
 import logging
 import math
 
@@ -12,7 +14,6 @@ from openpi.models_pytorch.gemma_pytorch import PaliGemmaWithExpertModel
 import openpi.models_pytorch.preprocessing_pytorch as _preprocessing
 
 
-# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_safe_dtype(target_dtype, device_type):
     """Get a safe dtype for the given device type."""
     if device_type == "cpu":
@@ -24,7 +25,6 @@ def get_safe_dtype(target_dtype, device_type):
     return target_dtype
 
 
-# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_sinusoidal_pos_embedding(
     time: torch.tensor, dimension: int, min_period: float, max_period: float, device="cpu"
 ) -> Tensor:
@@ -39,21 +39,22 @@ def create_sinusoidal_pos_embedding(
     fraction = torch.linspace(0.0, 1.0, dimension // 2, dtype=dtype, device=device)
     period = min_period * (max_period / min_period) ** fraction
 
-    # Compute the outer product
+    # CN: 外积得到 batch 内每个样本在各频率上的相位输入。
+    # EN: Outer product builds per-sample phase inputs over all frequencies.
     scaling_factor = 1.0 / period * 2 * math.pi
     sin_input = scaling_factor[None, :] * time[:, None]
     return torch.cat([torch.sin(sin_input), torch.cos(sin_input)], dim=1)
 
 
-# [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
 def sample_beta(alpha, beta, bsize, device):
+    # CN: 使用 Beta 分布采样时间步，贴近流匹配训练常见的前期高噪声分布。
+    # EN: Sample timesteps from a Beta distribution to match the high-noise-heavy regime used in flow matching.
     alpha_t = torch.as_tensor(alpha, dtype=torch.float32, device=device)
     beta_t = torch.as_tensor(beta, dtype=torch.float32, device=device)
     dist = torch.distributions.Beta(alpha_t, beta_t)
     return dist.sample((bsize,))
 
 
-# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_att_2d_masks(pad_masks, att_masks):
     """Copied from big_vision.
 
@@ -80,13 +81,14 @@ def make_att_2d_masks(pad_masks, att_masks):
     if pad_masks.ndim != 2:
         raise ValueError(pad_masks.ndim)
 
+    # CN: 与 JAX 版一致，用累计段编号构建因果/分段注意力可见性。
+    # EN: Match JAX behavior by using cumulative segment ids to build causal/segment visibility.
     cumsum = torch.cumsum(att_masks, dim=1)
     att_2d_masks = cumsum[:, None, :] <= cumsum[:, :, None]
     pad_2d_masks = pad_masks[:, None, :] * pad_masks[:, :, None]
     return att_2d_masks & pad_2d_masks
 
 
-# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class PI0Pytorch(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -130,7 +132,6 @@ class PI0Pytorch(nn.Module):
         except ImportError:
             raise ValueError(msg) from None
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def gradient_checkpointing_enable(self):
         """Enable gradient checkpointing for memory optimization."""
         self.gradient_checkpointing_enabled = True
@@ -140,7 +141,6 @@ class PI0Pytorch(nn.Module):
 
         logging.info("Enabled gradient checkpointing for PI0Pytorch model")
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def gradient_checkpointing_disable(self):
         """Disable gradient checkpointing."""
         self.gradient_checkpointing_enabled = False
@@ -150,12 +150,10 @@ class PI0Pytorch(nn.Module):
 
         logging.info("Disabled gradient checkpointing for PI0Pytorch model")
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def is_gradient_checkpointing_enabled(self):
         """Check if gradient checkpointing is enabled."""
         return self.gradient_checkpointing_enabled
 
-    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     def _apply_checkpoint(self, func, *args, **kwargs):
         """Helper method to apply gradient checkpointing if enabled."""
         if self.gradient_checkpointing_enabled and self.training:
@@ -164,13 +162,11 @@ class PI0Pytorch(nn.Module):
             )
         return func(*args, **kwargs)
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def _prepare_attention_masks_4d(self, att_2d_masks):
         """Helper method to prepare 4D attention masks for transformer."""
         att_2d_masks_4d = att_2d_masks[:, None, :, :]
         return torch.where(att_2d_masks_4d, 0.0, -2.3819763e38)
 
-    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def _preprocess_observation(self, observation, *, train=True):
         """Helper method to preprocess observation."""
         observation = _preprocessing.preprocess_observation_pytorch(observation, train=train)
@@ -182,7 +178,6 @@ class PI0Pytorch(nn.Module):
             observation.state,
         )
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     def sample_noise(self, shape, device):
         return torch.normal(
             mean=0.0,
@@ -192,13 +187,13 @@ class PI0Pytorch(nn.Module):
             device=device,
         )
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     def sample_time(self, bsize, device):
+        # CN: 将 Beta 样本限制在 (0, 1]，避免 t=0 处数值退化。
+        # EN: Clamp Beta samples to (0, 1] to avoid numerical degeneracy at t=0.
         time_beta = sample_beta(1.5, 1.0, bsize, device)
         time = time_beta * 0.999 + 0.001
         return time.to(dtype=torch.float32, device=device)
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def embed_prefix(
         self, images, img_masks, lang_tokens, lang_masks
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
@@ -212,7 +207,6 @@ class PI0Pytorch(nn.Module):
         # Process images
         for img, img_mask in zip(images, img_masks, strict=True):
 
-            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
             def image_embed_func(img):
                 return self.paligemma_with_expert.embed_image(img)
 
@@ -223,11 +217,11 @@ class PI0Pytorch(nn.Module):
             embs.append(img_emb)
             pad_masks.append(img_mask[:, None].expand(bsize, num_img_embs))
 
-            # Create attention masks so that image tokens attend to each other
+            # CN: 图像前缀内部双向可见。
+            # EN: Image prefix tokens are fully visible to one another.
             att_masks += [0] * num_img_embs
 
         # Process language tokens
-        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
         def lang_embed_func(lang_tokens):
             lang_emb = self.paligemma_with_expert.embed_language_tokens(lang_tokens)
             lang_emb_dim = lang_emb.shape[-1]
@@ -238,7 +232,8 @@ class PI0Pytorch(nn.Module):
         embs.append(lang_emb)
         pad_masks.append(lang_masks)
 
-        # full attention between image and language inputs
+        # CN: 图像与语言前缀之间同样双向可见。
+        # EN: Image and language prefixes are also fully bidirectional.
         num_lang_embs = lang_emb.shape[1]
         att_masks += [0] * num_lang_embs
 
@@ -252,7 +247,6 @@ class PI0Pytorch(nn.Module):
 
         return embs, pad_masks, att_masks
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def embed_suffix(self, state, noisy_actions, timestep):
         """Embed state, noisy_actions, timestep to prepare for Expert Gemma processing."""
         embs = []
@@ -264,7 +258,6 @@ class PI0Pytorch(nn.Module):
                 state = state.to(torch.float32)
 
             # Embed state
-            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
             def state_proj_func(state):
                 return self.state_proj(state)
 
@@ -280,14 +273,15 @@ class PI0Pytorch(nn.Module):
             # Set attention masks so that image and language inputs do not attend to state or actions
             att_masks += [1]
 
-        # Embed timestep using sine-cosine positional encoding with sensitivity in the range [0, 1]
+        # CN: Flow Matching 的时间条件，t 采样于 (0, 1]。
+        # EN: Time conditioning for flow matching, with t sampled in (0, 1].
         time_emb = create_sinusoidal_pos_embedding(
             timestep, self.action_in_proj.out_features, min_period=4e-3, max_period=4.0, device=timestep.device
         )
         time_emb = time_emb.type(dtype=timestep.dtype)
 
-        # Fuse timestep + action information using an MLP
-        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
+        # CN: 将动作与时间条件投影到 action expert 的输入空间。
+        # EN: Project action and time conditions into the action-expert input space.
         def action_proj_func(noisy_actions):
             return self.action_in_proj(noisy_actions)
 
@@ -297,8 +291,8 @@ class PI0Pytorch(nn.Module):
             time_emb = time_emb[:, None, :].expand_as(action_emb)
             action_time_emb = torch.cat([action_emb, time_emb], dim=2)
 
-            # Apply MLP layers
-            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
+            # CN: pi0 分支使用 MLP 融合 [action, time]，不走 adaRMS。
+            # EN: pi0 branch fuses [action, time] via MLP and does not use adaRMS.
             def mlp_func(action_time_emb):
                 x = self.action_time_mlp_in(action_time_emb)
                 x = F.silu(x)  # swish == silu
@@ -308,7 +302,6 @@ class PI0Pytorch(nn.Module):
             adarms_cond = None
         else:
             # time MLP (for adaRMS)
-            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
             def time_mlp_func(time_emb):
                 x = self.time_mlp_in(time_emb)
                 x = F.silu(x)  # swish == silu
@@ -326,7 +319,8 @@ class PI0Pytorch(nn.Module):
         action_time_mask = torch.ones(bsize, action_time_dim, dtype=torch.bool, device=timestep.device)
         pad_masks.append(action_time_mask)
 
-        # Set attention masks so that image, language and state inputs do not attend to action tokens
+        # CN: 前缀 token 不可“看见”动作 token，保持动作去噪的自回归结构。
+        # EN: Prefix tokens cannot attend to action tokens, preserving autoregressive denoising structure.
         att_masks += [1] + ([0] * (self.config.action_horizon - 1))
 
         embs = torch.cat(embs, dim=1)
@@ -336,7 +330,6 @@ class PI0Pytorch(nn.Module):
 
         return embs, pad_masks, att_masks, adarms_cond
 
-    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(self, observation, actions, noise=None, time=None) -> Tensor:
         """Do a full training forward pass and compute the loss (batch_size x num_steps x num_motors)"""
         images, img_masks, lang_tokens, lang_masks, state = self._preprocess_observation(observation, train=True)
@@ -347,6 +340,8 @@ class PI0Pytorch(nn.Module):
         if time is None:
             time = self.sample_time(actions.shape[0], actions.device)
 
+        # CN: 定义 CFM 路径 x_t 与监督速度场 u_t。
+        # EN: Define the CFM path x_t and supervised velocity field u_t.
         time_expanded = time[:, None, None]
         x_t = time_expanded * noise + (1 - time_expanded) * actions
         u_t = noise - actions
@@ -369,8 +364,8 @@ class PI0Pytorch(nn.Module):
         # Prepare attention masks
         att_2d_masks_4d = self._prepare_attention_masks_4d(att_2d_masks)
 
-        # Apply gradient checkpointing if enabled
-        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
+        # CN: 一次联合前向，suffix 输出动作速度预测 v_t。
+        # EN: Run a joint forward pass where suffix outputs action velocity prediction v_t.
         def forward_func(prefix_embs, suffix_embs, att_2d_masks_4d, position_ids, adarms_cond):
             (_, suffix_out), _ = self.paligemma_with_expert.forward(
                 attention_mask=att_2d_masks_4d,
@@ -389,8 +384,8 @@ class PI0Pytorch(nn.Module):
         suffix_out = suffix_out[:, -self.config.action_horizon :]
         suffix_out = suffix_out.to(dtype=torch.float32)
 
-        # Apply gradient checkpointing to final action projection if enabled
-        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
+        # CN: 最终线性头把隐藏状态映射回动作维度。
+        # EN: Final linear head maps hidden states back to action dimensions.
         def action_out_proj_func(suffix_out):
             return self.action_out_proj(suffix_out)
 
@@ -398,7 +393,6 @@ class PI0Pytorch(nn.Module):
 
         return F.mse_loss(u_t, v_t, reduction="none")
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @torch.no_grad()
     def sample_actions(self, device, observation, noise=None, num_steps=10) -> Tensor:
         """Do a full inference forward and compute the action (batch_size x num_steps x num_motors)"""
@@ -425,6 +419,8 @@ class PI0Pytorch(nn.Module):
             use_cache=True,
         )
 
+        # CN: 通过 Euler 积分从 t=1 迭代到 t=0 完成去噪采样。
+        # EN: Run Euler integration from t=1 to t=0 for denoising-based sampling.
         dt = -1.0 / num_steps
         dt = torch.tensor(dt, dtype=torch.float32, device=device)
 
@@ -440,12 +436,12 @@ class PI0Pytorch(nn.Module):
                 expanded_time,
             )
 
-            # Euler step - use new tensor assignment instead of in-place operation
+            # CN: Euler 更新一步，避免 inplace 以兼容 autograd/编译路径。
+            # EN: One Euler update step; avoid inplace ops for safer autograd/compile behavior.
             x_t = x_t + dt * v_t
             time += dt
         return x_t
 
-    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def denoise_step(
         self,
         state,

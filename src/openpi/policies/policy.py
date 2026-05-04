@@ -1,4 +1,3 @@
-﻿# [解读]: 该模块位于策略适配层，负责把机器人环境字段和模型统一输入输出格式互相转换。
 from collections.abc import Sequence
 import logging
 import pathlib
@@ -18,11 +17,13 @@ from openpi import transforms as _transforms
 from openpi.models import model as _model
 from openpi.shared import array_typing as at
 from openpi.shared import nnx_utils
+# CN: 模块说明 - 策略推理封装与任务策略实现。
+# EN: Module summary - Policy inference wrappers and task policy implementations.
+
 
 BasePolicy: TypeAlias = _base_policy.BasePolicy
 
 
-# [解读]: 该运行时类隔离模型推理和外部系统交互，让机器人控制、远程调用和本地模型可以独立演进。
 class Policy(BasePolicy):
     def __init__(
         self,
@@ -58,19 +59,24 @@ class Policy(BasePolicy):
         self._pytorch_device = pytorch_device
 
         if self._is_pytorch_model:
+            # CN: PyTorch 路径直接复用 eager 推理函数，并固定 eval 模式。
+            # EN: PyTorch path reuses eager inference directly and forces eval mode.
             self._model = self._model.to(pytorch_device)
             self._model.eval()
             self._sample_actions = model.sample_actions
         else:
+            # CN: JAX 路径对采样入口做 JIT 包装，降低在线推理延迟。
+            # EN: JAX path JIT-wraps the sampling entrypoint to reduce online inference latency.
             # JAX model setup
             self._sample_actions = nnx_utils.module_jit(model.sample_actions)
             self._rng = rng or jax.random.key(0)
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def infer(self, obs: dict, *, noise: np.ndarray | None = None) -> dict:  # type: ignore[misc]
         # Make a copy since transformations may modify the inputs in place.
         inputs = jax.tree.map(lambda x: x, obs)
+        # CN: 输入先经过策略侧 transform 管线，保证与训练时字段约定一致。
+        # EN: Inputs first pass through policy transforms to match training-time field contracts.
         inputs = self._input_transform(inputs)
         if not self._is_pytorch_model:
             # Make a batch and convert to jax.Array.
@@ -94,6 +100,8 @@ class Policy(BasePolicy):
         start_time = time.monotonic()
         outputs = {
             "state": inputs["state"],
+            # CN: policy 执行入口：统一调用模型 sample_actions 产出动作序列。
+            # EN: Policy execution entrypoint: call model.sample_actions to produce action sequences.
             "actions": self._sample_actions(sample_rng_or_pytorch_device, observation, **sample_kwargs),
         }
         model_time = time.monotonic() - start_time
@@ -108,17 +116,14 @@ class Policy(BasePolicy):
         }
         return outputs
 
-    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     @property
     def metadata(self) -> dict[str, Any]:
         return self._metadata
 
 
-# [解读]: 该运行时类隔离模型推理和外部系统交互，让机器人控制、远程调用和本地模型可以独立演进。
 class PolicyRecorder(_base_policy.BasePolicy):
     """Records the policy's behavior to disk."""
 
-    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, policy: _base_policy.BasePolicy, record_dir: str):
         self._policy = policy
 
@@ -127,7 +132,6 @@ class PolicyRecorder(_base_policy.BasePolicy):
         self._record_dir.mkdir(parents=True, exist_ok=True)
         self._record_step = 0
 
-    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def infer(self, obs: dict) -> dict:  # type: ignore[misc]
         results = self._policy.infer(obs)

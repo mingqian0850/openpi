@@ -1,10 +1,11 @@
-﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 import jax.numpy as jnp
 
 from openpi.shared import image_tools
+# CN: 模块说明 - 跨模块共享工具与基础类型定义。
+# EN: Module summary - Cross-module shared utilities and core typing helpers.
 
 
-# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
+
 def test_resize_with_pad_shapes():
     # Test case 1: Resize image with larger dimensions
     images = jnp.zeros((2, 10, 10, 3), dtype=jnp.uint8)  # Input images of shape (batch_size, height, width, channels)

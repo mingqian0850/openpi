@@ -1,3 +1,4 @@
+﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 from flax import nnx
 import jax
 import pytest
@@ -9,6 +10,7 @@ from openpi.shared import download
 from openpi.shared import nnx_utils
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pi0_model():
     key = jax.random.key(0)
     config = pi0_config.Pi0Config()
@@ -24,6 +26,7 @@ def test_pi0_model():
     assert actions.shape == (batch_size, model.action_horizon, model.action_dim)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pi0_lora_model():
     key = jax.random.key(0)
     config = pi0_config.Pi0Config(paligemma_variant="gemma_2b_lora")
@@ -39,6 +42,7 @@ def test_pi0_lora_model():
     assert actions.shape == (batch_size, model.action_horizon, model.action_dim)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pi0_fast_model():
     key = jax.random.key(0)
     config = pi0_fast.Pi0FASTConfig()
@@ -54,6 +58,7 @@ def test_pi0_fast_model():
     assert actions.shape == (batch_size, 256)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pi0_fast_lora_model():
     key = jax.random.key(0)
     config = pi0_fast.Pi0FASTConfig(paligemma_variant="gemma_2b_lora")
@@ -75,6 +80,7 @@ def test_pi0_fast_lora_model():
     assert len(lora_state_elems) > 0
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 @pytest.mark.manual
 def test_model_restore():
     key = jax.random.key(0)

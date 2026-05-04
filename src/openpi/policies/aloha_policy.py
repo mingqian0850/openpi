@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于策略适配层，负责把机器人环境字段和模型统一输入输出格式互相转换。
 import dataclasses
 from typing import ClassVar
 
@@ -7,6 +8,7 @@ import numpy as np
 from openpi import transforms
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_aloha_example() -> dict:
     """Creates a random input example for the Aloha policy."""
     return {
@@ -21,6 +23,7 @@ def make_aloha_example() -> dict:
     }
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class AlohaInputs(transforms.DataTransformFn):
     """Inputs for the Aloha policy.
@@ -39,6 +42,7 @@ class AlohaInputs(transforms.DataTransformFn):
     # replaced with black images and the corresponding `image_mask` will be set to False.
     EXPECTED_CAMERAS: ClassVar[tuple[str, ...]] = ("cam_high", "cam_low", "cam_left_wrist", "cam_right_wrist")
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: dict) -> dict:
         data = _decode_aloha(data, adapt_to_pi=self.adapt_to_pi)
 
@@ -87,6 +91,7 @@ class AlohaInputs(transforms.DataTransformFn):
         return inputs
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class AlohaOutputs(transforms.DataTransformFn):
     """Outputs for the Aloha policy."""
@@ -95,25 +100,30 @@ class AlohaOutputs(transforms.DataTransformFn):
     # the space used by the pi internal runtime which was used to train the base model.
     adapt_to_pi: bool = True
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: dict) -> dict:
         # Only return the first 14 dims.
         actions = np.asarray(data["actions"][:, :14])
         return {"actions": _encode_actions(actions, adapt_to_pi=self.adapt_to_pi)}
 
 
+# [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
 def _joint_flip_mask() -> np.ndarray:
     """Used to convert between aloha and pi joint angles."""
     return np.array([1, -1, -1, 1, 1, 1, 1, 1, -1, -1, 1, 1, 1, 1])
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def _normalize(x, min_val, max_val):
     return (x - min_val) / (max_val - min_val)
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def _unnormalize(x, min_val, max_val):
     return x * (max_val - min_val) + min_val
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _gripper_to_angular(value):
     # Aloha transforms the gripper positions into a linear space. The following code
     # reverses this transformation to be consistent with pi0 which is pretrained in
@@ -124,6 +134,7 @@ def _gripper_to_angular(value):
     value = _unnormalize(value, min_val=0.01844, max_val=0.05800)
 
     # This is the inverse of the angular to linear transformation inside the Interbotix code.
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def linear_to_radian(linear_position, arm_length, horn_radius):
         value = (horn_radius**2 + linear_position**2 - arm_length**2) / (2 * horn_radius * linear_position)
         return np.arcsin(np.clip(value, -1.0, 1.0))
@@ -137,6 +148,7 @@ def _gripper_to_angular(value):
     return _normalize(value, min_val=0.5476, max_val=1.6296)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _gripper_from_angular(value):
     # Convert from the gripper position used by pi0 to the gripper position that is used by Aloha.
     # Note that the units are still angular but the range is different.
@@ -150,18 +162,21 @@ def _gripper_from_angular(value):
     return _normalize(value, min_val=-0.6213, max_val=1.4910)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _gripper_from_angular_inv(value):
     # Directly inverts the gripper_from_angular function.
     value = _unnormalize(value, min_val=-0.6213, max_val=1.4910)
     return value - 0.5476
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _decode_aloha(data: dict, *, adapt_to_pi: bool = False) -> dict:
     # state is [left_arm_joint_angles, left_arm_gripper, right_arm_joint_angles, right_arm_gripper]
     # dim sizes: [6, 1, 6, 1]
     state = np.asarray(data["state"])
     state = _decode_state(state, adapt_to_pi=adapt_to_pi)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def convert_image(img):
         img = np.asarray(img)
         # Convert to uint8 if using float images.
@@ -178,6 +193,7 @@ def _decode_aloha(data: dict, *, adapt_to_pi: bool = False) -> dict:
     return data
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _decode_state(state: np.ndarray, *, adapt_to_pi: bool = False) -> np.ndarray:
     if adapt_to_pi:
         # Flip the joints.
@@ -187,6 +203,7 @@ def _decode_state(state: np.ndarray, *, adapt_to_pi: bool = False) -> np.ndarray
     return state
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _encode_actions(actions: np.ndarray, *, adapt_to_pi: bool = False) -> np.ndarray:
     if adapt_to_pi:
         # Flip the joints.
@@ -195,6 +212,7 @@ def _encode_actions(actions: np.ndarray, *, adapt_to_pi: bool = False) -> np.nda
     return actions
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _encode_actions_inv(actions: np.ndarray, *, adapt_to_pi: bool = False) -> np.ndarray:
     if adapt_to_pi:
         actions = _joint_flip_mask() * actions

@@ -1,3 +1,4 @@
+﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 import dataclasses
 import os
 import pathlib
@@ -11,6 +12,7 @@ from openpi.training import config as _config
 from . import train
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 @pytest.mark.parametrize("config_name", ["debug"])
 def test_train(tmp_path: pathlib.Path, config_name: str):
     config = dataclasses.replace(

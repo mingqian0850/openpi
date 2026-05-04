@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
 # Copyright 2024 Google LLC.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,14 +29,17 @@ Shape = tuple[int]
 Dtype = Any
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class IdentityLayer(nn.Module):
     """Identity layer, convenient for giving a name to an array."""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x):
         return x
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class AddPositionEmbs(nn.Module):
     """Adds learned positional embeddings to the inputs.
 
@@ -46,6 +50,7 @@ class AddPositionEmbs(nn.Module):
     posemb_init: Callable[[PRNGKey, Shape, Dtype], Array]
     param_dtype: Dtype = jnp.float32
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, inputs):
         """Applies the AddPositionEmbs module.
@@ -63,6 +68,7 @@ class AddPositionEmbs(nn.Module):
         return inputs + pe
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class MlpBlock(nn.Module):
     """Transformer MLP / feed-forward block."""
 
@@ -74,6 +80,7 @@ class MlpBlock(nn.Module):
     kernel_init: Callable[[PRNGKey, Shape, Dtype], Array] = nn.initializers.xavier_uniform()
     bias_init: Callable[[PRNGKey, Shape, Dtype], Array] = nn.initializers.normal(stddev=1e-6)
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, inputs, *, deterministic):
         """Applies Transformer MlpBlock module."""
@@ -101,6 +108,7 @@ class MlpBlock(nn.Module):
         return nn.Dropout(rate=self.dropout_rate)(output, deterministic=deterministic)
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class Encoder1DBlock(nn.Module):
     """Transformer encoder layer.
 
@@ -120,6 +128,7 @@ class Encoder1DBlock(nn.Module):
     dropout_rate: float = 0.1
     attention_dropout_rate: float = 0.1
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, inputs, deterministic):
         """Applies Encoder1DBlock module.
@@ -157,6 +166,7 @@ class Encoder1DBlock(nn.Module):
         return x + y, None
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class Encoder(nn.Module):
     """Transformer Model Encoder for sequence to sequence translation.
 
@@ -176,6 +186,7 @@ class Encoder(nn.Module):
     attention_dropout_rate: float = 0.1
     add_position_embedding: bool = True
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x, *, train):
         """Applies Transformer model on the inputs.
@@ -216,6 +227,7 @@ class Encoder(nn.Module):
         return nn.LayerNorm(name="encoder_norm", dtype=self.dtype)(x)
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 class VisionTransformer(nn.Module):
     """VisionTransformer."""
 
@@ -231,6 +243,7 @@ class VisionTransformer(nn.Module):
     encoder: type[nn.Module] = Encoder
     model_name: str | None = None
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, inputs, *, train):
         x = inputs

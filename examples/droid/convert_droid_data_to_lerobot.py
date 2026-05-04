@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 """
 Minimal example script for converting a dataset collected on the DROID platform to LeRobot format.
 
@@ -29,11 +30,13 @@ import tyro
 REPO_NAME = "your_hf_username/my_droid_dataset"  # Name of the output dataset, also used for the Hugging Face Hub
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def resize_image(image, size):
     image = Image.fromarray(image)
     return np.array(image.resize(size, resample=Image.BICUBIC))
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(data_dir: str, *, push_to_hub: bool = False):
     # Clean up any existing dataset in the output directory
     output_path = HF_LEROBOT_HOME / REPO_NAME
@@ -177,6 +180,7 @@ camera_type_to_string_dict = {
 }
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_camera_type(cam_id):
     if cam_id not in camera_type_dict:
         return None
@@ -184,6 +188,7 @@ def get_camera_type(cam_id):
     return camera_type_to_string_dict[type_int]
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class MP4Reader:
     def __init__(self, filepath, serial_number):
         # Save Parameters #
@@ -195,6 +200,7 @@ class MP4Reader:
         if not self._mp4_reader.isOpened():
             raise RuntimeError("Corrupted MP4 File")
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_reading_parameters(
         self,
         image=True,  # noqa: FBT002
@@ -211,16 +217,19 @@ class MP4Reader:
         if self.skip_reading:
             return
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_frame_resolution(self):
         width = self._mp4_reader.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH)
         height = self._mp4_reader.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT)
         return (width, height)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_frame_count(self):
         if self.skip_reading:
             return 0
         return int(self._mp4_reader.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_frame_index(self, index):
         if self.skip_reading:
             return
@@ -232,12 +241,14 @@ class MP4Reader:
         while self._index < index:
             self.read_camera(ignore_data=True)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def _process_frame(self, frame):
         frame = copy.deepcopy(frame)
         if self.resolution == (0, 0):
             return frame
         return self.resize_func(frame, self.resolution)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def read_camera(self, ignore_data=False, correct_timestamp=None):  # noqa: FBT002
         # Skip if Read Unnecessary #
         if self.skip_reading:
@@ -266,11 +277,13 @@ class MP4Reader:
 
         return data_dict
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def disable_camera(self):
         if hasattr(self, "_mp4_reader"):
             self._mp4_reader.release()
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class RecordedMultiCameraWrapper:
     def __init__(self, recording_folderpath, camera_kwargs={}):  # noqa: B006
         # Save Camera Info #
@@ -293,6 +306,7 @@ class RecordedMultiCameraWrapper:
 
             self.camera_dict[serial_number] = Reader(f, serial_number)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def read_cameras(self, index=None, camera_type_dict={}, timestamp_dict={}):  # noqa: B006
         full_obs_dict = defaultdict(dict)
 
@@ -326,6 +340,7 @@ class RecordedMultiCameraWrapper:
         return full_obs_dict
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_hdf5_length(hdf5_file, keys_to_ignore=[]):  # noqa: B006
     length = None
 
@@ -348,6 +363,7 @@ def get_hdf5_length(hdf5_file, keys_to_ignore=[]):  # noqa: B006
     return length
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def load_hdf5_to_dict(hdf5_file, index, keys_to_ignore=[]):  # noqa: B006
     data_dict = {}
 
@@ -366,6 +382,7 @@ def load_hdf5_to_dict(hdf5_file, index, keys_to_ignore=[]):  # noqa: B006
     return data_dict
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class TrajectoryReader:
     def __init__(self, filepath, read_images=True):  # noqa: FBT002
         self._hdf5_file = h5py.File(filepath, "r")
@@ -375,9 +392,11 @@ class TrajectoryReader:
         self._video_readers = {}
         self._index = 0
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def length(self):
         return self._length
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def read_timestep(self, index=None, keys_to_ignore=[]):  # noqa: B006
         # Make Sure We Read Within Range #
         if index is None:
@@ -397,10 +416,12 @@ class TrajectoryReader:
         # Return Timestep #
         return timestep
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def close(self):
         self._hdf5_file.close()
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def load_trajectory(
     filepath=None,
     read_cameras=True,  # noqa: FBT002

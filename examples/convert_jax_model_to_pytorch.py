@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
+# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 """
 Load a JAX model and print all parameter keys, with optional conversion to PyTorch.
 
@@ -47,6 +48,7 @@ from openpi.training import utils
 import openpi.training.config as _config
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def slice_paligemma_state_dict(state_dict, config):
     """Convert PaliGemma JAX parameters to PyTorch format."""
     suffix = "/value" if "img/embedding/kernel/value" in state_dict else ""
@@ -268,6 +270,7 @@ def slice_paligemma_state_dict(state_dict, config):
     return final_state_dict, expert_dict
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def slice_gemma_state_dict(state_dict, config, *, num_expert, checkpoint_dir, pi05):
     """Convert Gemma JAX parameters to PyTorch format."""
     # Add missing attributes to config if they don't exist
@@ -393,6 +396,7 @@ def slice_gemma_state_dict(state_dict, config, *, num_expert, checkpoint_dir, pi
     return final_state_dict
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def slice_initial_orbax_checkpoint(checkpoint_dir: str, restore_precision: str | None = None):
     """Load and process params by restoring via JAX model loader first.
     This respects dtype conversions that occur during model restore.
@@ -405,6 +409,7 @@ def slice_initial_orbax_checkpoint(checkpoint_dir: str, restore_precision: str |
     return {"paligemma_params": traversals.flatten_mapping(params["PaliGemma"], sep="/"), "projection_params": params}
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def load_jax_model_and_print_keys(checkpoint_dir: str):
     """
     Load JAX model from checkpoint and print all parameter keys.
@@ -419,6 +424,7 @@ def load_jax_model_and_print_keys(checkpoint_dir: str):
     print(utils.array_tree_to_info(metadata))
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def convert_pi0_checkpoint(
     checkpoint_dir: str, precision: str, output_path: str, model_config: openpi.models.pi0_config.Pi0Config
 ):
@@ -473,6 +479,7 @@ def convert_pi0_checkpoint(
 
     # Create configs based on checkpoint path
     # All models use the same PaliGemma config structure
+    # [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
     class PaliGemmaConfig:
         def __init__(self):
             self.vision_config = type(
@@ -555,6 +562,7 @@ def convert_pi0_checkpoint(
     print(f"Model saved to {output_path}")
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(
     checkpoint_dir: str,
     config_name: str,

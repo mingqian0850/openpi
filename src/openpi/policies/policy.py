@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于策略适配层，负责把机器人环境字段和模型统一输入输出格式互相转换。
 from collections.abc import Sequence
 import logging
 import pathlib
@@ -21,6 +22,7 @@ from openpi.shared import nnx_utils
 BasePolicy: TypeAlias = _base_policy.BasePolicy
 
 
+# [解读]: 该运行时类隔离模型推理和外部系统交互，让机器人控制、远程调用和本地模型可以独立演进。
 class Policy(BasePolicy):
     def __init__(
         self,
@@ -64,6 +66,7 @@ class Policy(BasePolicy):
             self._sample_actions = nnx_utils.module_jit(model.sample_actions)
             self._rng = rng or jax.random.key(0)
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def infer(self, obs: dict, *, noise: np.ndarray | None = None) -> dict:  # type: ignore[misc]
         # Make a copy since transformations may modify the inputs in place.
@@ -105,14 +108,17 @@ class Policy(BasePolicy):
         }
         return outputs
 
+    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     @property
     def metadata(self) -> dict[str, Any]:
         return self._metadata
 
 
+# [解读]: 该运行时类隔离模型推理和外部系统交互，让机器人控制、远程调用和本地模型可以独立演进。
 class PolicyRecorder(_base_policy.BasePolicy):
     """Records the policy's behavior to disk."""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, policy: _base_policy.BasePolicy, record_dir: str):
         self._policy = policy
 
@@ -121,6 +127,7 @@ class PolicyRecorder(_base_policy.BasePolicy):
         self._record_dir.mkdir(parents=True, exist_ok=True)
         self._record_step = 0
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def infer(self, obs: dict) -> dict:  # type: ignore[misc]
         results = self._policy.infer(obs)

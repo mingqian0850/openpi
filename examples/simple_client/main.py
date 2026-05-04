@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 import dataclasses
 import enum
 import logging
@@ -14,6 +15,7 @@ import tyro
 logger = logging.getLogger(__name__)
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class EnvMode(enum.Enum):
     """Supported environments."""
 
@@ -23,6 +25,7 @@ class EnvMode(enum.Enum):
     LIBERO = "libero"
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass
 class Args:
     """Command line arguments."""
@@ -41,18 +44,22 @@ class Args:
     env: EnvMode = EnvMode.ALOHA_SIM
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class TimingRecorder:
     """Records timing measurements for different keys."""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self) -> None:
         self._timings: dict[str, list[float]] = {}
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def record(self, key: str, time_ms: float) -> None:
         """Record a timing measurement for the given key."""
         if key not in self._timings:
             self._timings[key] = []
         self._timings[key].append(time_ms)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_stats(self, key: str) -> dict[str, float]:
         """Get statistics for the given key."""
         times = self._timings[key]
@@ -67,6 +74,7 @@ class TimingRecorder:
             "p99": float(np.quantile(times, 0.99)),
         }
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def print_all_stats(self) -> None:
         """Print statistics for all keys in a concise format."""
 
@@ -106,6 +114,7 @@ class TimingRecorder:
         console = rich.console.Console(width=None, highlight=True)
         console.print(table)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def write_parquet(self, path: pathlib.Path) -> None:
         """Save the timings to a parquet file."""
         logger.info(f"Writing timings to {path}")
@@ -114,6 +123,7 @@ class TimingRecorder:
         frame.write_parquet(path)
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(args: Args) -> None:
     obs_fn = {
         EnvMode.ALOHA: _random_observation_aloha,
@@ -150,6 +160,7 @@ def main(args: Args) -> None:
         timing_recorder.write_parquet(args.timing_file)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _random_observation_aloha() -> dict:
     return {
         "state": np.ones((14,)),
@@ -163,6 +174,7 @@ def _random_observation_aloha() -> dict:
     }
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _random_observation_droid() -> dict:
     return {
         "observation/exterior_image_1_left": np.random.randint(256, size=(224, 224, 3), dtype=np.uint8),
@@ -173,6 +185,7 @@ def _random_observation_droid() -> dict:
     }
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _random_observation_libero() -> dict:
     return {
         "observation/state": np.random.rand(8),

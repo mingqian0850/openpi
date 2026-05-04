@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块提供跨训练和推理复用的基础能力，避免图像、下载、归一化和类型逻辑在各处重复实现。
 import functools
 
 import jax
@@ -8,6 +9,7 @@ import torch.nn.functional as F  # noqa: N812
 import openpi.shared.array_typing as at
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 @functools.partial(jax.jit, static_argnums=(1, 2, 3))
 @at.typecheck
 def resize_with_pad(
@@ -52,6 +54,7 @@ def resize_with_pad(
     return padded_images
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def resize_with_pad_torch(
     images: torch.Tensor,
     height: int,

@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于训练层，负责把配置、数据、优化器、分片或 checkpoint 组合成可恢复的训练流程。
 from collections.abc import Iterator, Sequence
 import logging
 import multiprocessing
@@ -19,49 +20,62 @@ import openpi.transforms as _transforms
 T_co = TypeVar("T_co", covariant=True)
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class Dataset(Protocol[T_co]):
     """Interface for a dataset with random access."""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __getitem__(self, index: SupportsIndex) -> T_co:
         raise NotImplementedError("Subclasses of Dataset should implement __getitem__.")
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __len__(self) -> int:
         raise NotImplementedError("Subclasses of Dataset should implement __len__.")
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class IterableDataset(Protocol[T_co]):
     """Interface for an iterable dataset."""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __iter__(self) -> Iterator[T_co]:
         raise NotImplementedError("Subclasses of IterableDataset should implement __iter__.")
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __len__(self) -> int:
         raise NotImplementedError("Subclasses of Dataset should implement __len__.")
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class DataLoader(Protocol[T_co]):
     """Interface for a data loader."""
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def data_config(self) -> _config.DataConfig:
         """Get the data config for this data loader."""
         raise NotImplementedError("Subclasses of DataLoader should implement data_config.")
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __iter__(self) -> Iterator[T_co]:
         raise NotImplementedError("Subclasses of DataLoader should implement __iter__.")
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class TransformedDataset(Dataset[T_co]):
     def __init__(self, dataset: Dataset, transforms: Sequence[_transforms.DataTransformFn]):
         self._dataset = dataset
         self._transform = _transforms.compose(transforms)
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __getitem__(self, index: SupportsIndex) -> T_co:
         return self._transform(self._dataset[index])
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __len__(self) -> int:
         return len(self._dataset)
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class IterableTransformedDataset(IterableDataset[T_co]):
     def __init__(
         self,
@@ -74,6 +88,7 @@ class IterableTransformedDataset(IterableDataset[T_co]):
         self._transform = _transforms.compose(transforms)
         self._is_batched = is_batched
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __iter__(self):
         for sample in self._dataset:
             if self._is_batched:
@@ -92,18 +107,22 @@ class IterableTransformedDataset(IterableDataset[T_co]):
             else:
                 yield self._transform(sample)
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __len__(self) -> int:
         return len(self._dataset)
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class FakeDataset(Dataset):
     def __init__(self, model_config: _model.BaseModelConfig, num_samples: int):
         self._num_samples = num_samples
         self._observation_spec, self._action_spec = model_config.inputs_spec()
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __getitem__(self, index: SupportsIndex) -> dict:
         rng = jax.random.key(index.__index__())
 
+        # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
         def make_from_spec(spec: jax.ShapeDtypeStruct):
             nonlocal rng
             rng, data_rng = jax.random.split(rng)
@@ -123,10 +142,12 @@ class FakeDataset(Dataset):
             "actions": action,
         }
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __len__(self) -> int:
         return self._num_samples
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_torch_dataset(
     data_config: _config.DataConfig, action_horizon: int, model_config: _model.BaseModelConfig
 ) -> Dataset:
@@ -151,6 +172,7 @@ def create_torch_dataset(
     return dataset
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_rlds_dataset(
     data_config: _config.DataConfig,
     action_horizon: int,
@@ -169,6 +191,7 @@ def create_rlds_dataset(
     )
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def transform_dataset(dataset: Dataset, data_config: _config.DataConfig, *, skip_norm_stats: bool = False) -> Dataset:
     """Transform the dataset by applying the data transforms."""
     norm_stats = {}
@@ -191,6 +214,7 @@ def transform_dataset(dataset: Dataset, data_config: _config.DataConfig, *, skip
     )
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def transform_iterable_dataset(
     dataset: IterableDataset,
     data_config: _config.DataConfig,
@@ -220,6 +244,7 @@ def transform_iterable_dataset(
     )
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_data_loader(
     config: _config.TrainConfig,
     *,
@@ -268,6 +293,7 @@ def create_data_loader(
     )
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_torch_data_loader(
     data_config: _config.DataConfig,
     model_config: _model.BaseModelConfig,
@@ -337,6 +363,7 @@ def create_torch_data_loader(
     return DataLoaderImpl(data_config, data_loader)
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_rlds_data_loader(
     data_config: _config.DataConfig,
     action_horizon: int,
@@ -378,9 +405,11 @@ def create_rlds_data_loader(
     return DataLoaderImpl(data_config, data_loader)
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class TorchDataLoader:
     """Torch data loader implementation."""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(
         self,
         dataset,
@@ -445,10 +474,12 @@ class TorchDataLoader:
             generator=generator,
         )
 
+    # [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
     @property
     def torch_loader(self) -> torch.utils.data.DataLoader:
         return self._data_loader
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __iter__(self):
         num_items = 0
         while True:
@@ -468,6 +499,7 @@ class TorchDataLoader:
                     yield jax.tree.map(torch.as_tensor, batch)
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def _collate_fn(items):
     """Collate the batch elements into batched numpy arrays."""
     # Make sure to convert to numpy arrays before stacking since some of the incoming elements
@@ -475,6 +507,7 @@ def _collate_fn(items):
     return jax.tree.map(lambda *xs: np.stack([np.asarray(x) for x in xs], axis=0), *items)
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def _worker_init_fn(worker_id: int) -> None:
     """Tell JAX inside the worker process not to preallocate the GPU memory."""
     # NOTE: This is called after jax is imported inside the worker process. This
@@ -483,12 +516,14 @@ def _worker_init_fn(worker_id: int) -> None:
     os.environ["XLA_PYTHON_CLIENT_ALLOCATOR"] = "platform"
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class RLDSDataLoader:
     """Shallow wrapper around the DROID data loader to make it compatible with openpi.
 
     All batching already happens in the DROID dataset, so we don't need to do anything here.
     """
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(
         self,
         dataset: DroidRldsDataset,
@@ -512,6 +547,7 @@ class RLDSDataLoader:
         self._sharding = sharding
         self._num_batches = num_batches
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __iter__(self):
         num_items = 0
         while True:
@@ -527,14 +563,17 @@ class RLDSDataLoader:
                 yield jax.tree.map(lambda x: jax.make_array_from_process_local_data(self._sharding, x), batch)
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class DataLoaderImpl(DataLoader):
     def __init__(self, data_config: _config.DataConfig, data_loader: TorchDataLoader | RLDSDataLoader):
         self._data_config = data_config
         self._data_loader = data_loader
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def data_config(self) -> _config.DataConfig:
         return self._data_config
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __iter__(self):
         for batch in self._data_loader:
             yield _model.Observation.from_dict(batch), batch["actions"]

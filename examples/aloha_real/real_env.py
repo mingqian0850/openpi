@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 # Ignore lint errors because this file is mostly copied from ACT (https://github.com/tonyzhaozh/act).
 # ruff: noqa
 import collections
@@ -15,6 +16,7 @@ from examples.aloha_real import robot_utils
 DEFAULT_RESET_POSITION = [0, -0.96, 1.16, 0, -0.3, 0]
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class RealEnv:
     """
     Environment for real robot bi-manual manipulation
@@ -37,6 +39,7 @@ class RealEnv:
                                    "cam_right_wrist": (480x640x3)} # h, w, c, dtype='uint8'
     """
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, init_node, *, reset_position: Optional[List[float]] = None, setup_robots: bool = True):
         # reset_position = START_ARM_POSE[:6]
         self._reset_position = reset_position[:6] if reset_position else DEFAULT_RESET_POSITION
@@ -59,10 +62,12 @@ class RealEnv:
         self.image_recorder = robot_utils.ImageRecorder(init_node=False)
         self.gripper_command = JointSingleCommand(name="gripper")
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup_robots(self):
         robot_utils.setup_puppet_bot(self.puppet_bot_left)
         robot_utils.setup_puppet_bot(self.puppet_bot_right)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_qpos(self):
         left_qpos_raw = self.recorder_left.qpos
         right_qpos_raw = self.recorder_right.qpos
@@ -76,6 +81,7 @@ class RealEnv:
         ]  # this is position not joint
         return np.concatenate([left_arm_qpos, left_gripper_qpos, right_arm_qpos, right_gripper_qpos])
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_qvel(self):
         left_qvel_raw = self.recorder_left.qvel
         right_qvel_raw = self.recorder_right.qvel
@@ -85,6 +91,7 @@ class RealEnv:
         right_gripper_qvel = [constants.PUPPET_GRIPPER_VELOCITY_NORMALIZE_FN(right_qvel_raw[7])]
         return np.concatenate([left_arm_qvel, left_gripper_qvel, right_arm_qvel, right_gripper_qvel])
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_effort(self):
         left_effort_raw = self.recorder_left.effort
         right_effort_raw = self.recorder_right.effort
@@ -92,9 +99,11 @@ class RealEnv:
         right_robot_effort = right_effort_raw[:7]
         return np.concatenate([left_robot_effort, right_robot_effort])
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_images(self):
         return self.image_recorder.get_images()
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_gripper_pose(self, left_gripper_desired_pos_normalized, right_gripper_desired_pos_normalized):
         left_gripper_desired_joint = constants.PUPPET_GRIPPER_JOINT_UNNORMALIZE_FN(left_gripper_desired_pos_normalized)
         self.gripper_command.cmd = left_gripper_desired_joint
@@ -106,11 +115,13 @@ class RealEnv:
         self.gripper_command.cmd = right_gripper_desired_joint
         self.puppet_bot_right.gripper.core.pub_single.publish(self.gripper_command)
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def _reset_joints(self):
         robot_utils.move_arms(
             [self.puppet_bot_left, self.puppet_bot_right], [self._reset_position, self._reset_position], move_time=1
         )
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def _reset_gripper(self):
         """Set to position mode and do position resets: first close then open. Then change back to PWM mode
 
@@ -125,6 +136,7 @@ class RealEnv:
             [self.puppet_bot_left, self.puppet_bot_right], [constants.PUPPET_GRIPPER_JOINT_OPEN] * 2, move_time=0.5
         )
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_observation(self):
         obs = collections.OrderedDict()
         obs["qpos"] = self.get_qpos()
@@ -133,9 +145,11 @@ class RealEnv:
         obs["images"] = self.get_images()
         return obs
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_reward(self):
         return 0
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def reset(self, *, fake=False):
         if not fake:
             # Reboot puppet robot gripper motors
@@ -147,6 +161,7 @@ class RealEnv:
             step_type=dm_env.StepType.FIRST, reward=self.get_reward(), discount=None, observation=self.get_observation()
         )
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def step(self, action):
         state_len = int(len(action) / 2)
         left_action = action[:state_len]
@@ -160,6 +175,7 @@ class RealEnv:
         )
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_action(master_bot_left, master_bot_right):
     action = np.zeros(14)  # 6 joint + 1 gripper, for two arms
     # Arm actions
@@ -172,5 +188,6 @@ def get_action(master_bot_left, master_bot_right):
     return action
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_real_env(init_node, *, reset_position: Optional[List[float]] = None, setup_robots: bool = True) -> RealEnv:
     return RealEnv(init_node, reset_position=reset_position, setup_robots=setup_robots)

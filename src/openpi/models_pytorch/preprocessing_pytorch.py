@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块承接 PyTorch 版本模型路径，让同一套训练配置可以服务非 JAX 的权重加载、预处理与推理。
 from collections.abc import Sequence
 import logging
 
@@ -17,6 +18,7 @@ IMAGE_KEYS = (
 IMAGE_RESOLUTION = (224, 224)
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def preprocess_observation_pytorch(
     observation,
     *,
@@ -157,6 +159,7 @@ def preprocess_observation_pytorch(
             out_masks[key] = observation.image_masks[key]
 
     # Create a simple object with the required attributes instead of using the complex Observation class
+    # [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
     class SimpleProcessedObservation:
         def __init__(self, **kwargs):
             for key, value in kwargs.items():

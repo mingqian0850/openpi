@@ -1,3 +1,4 @@
+﻿# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
 import dataclasses
 import functools
 import logging
@@ -28,10 +29,12 @@ import openpi.training.utils as training_utils
 import openpi.training.weight_loaders as _weight_loaders
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def init_logging():
     """Custom logging format for better readability."""
     level_mapping = {"DEBUG": "D", "INFO": "I", "WARNING": "W", "ERROR": "E", "CRITICAL": "C"}
 
+    # [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
     class CustomFormatter(logging.Formatter):
         def format(self, record):
             record.levelname = level_mapping.get(record.levelname, record.levelname)
@@ -47,6 +50,7 @@ def init_logging():
     logger.handlers[0].setFormatter(formatter)
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def init_wandb(config: _config.TrainConfig, *, resuming: bool, log_code: bool = False, enabled: bool = True):
     if not enabled:
         wandb.init(mode="disabled")
@@ -70,6 +74,7 @@ def init_wandb(config: _config.TrainConfig, *, resuming: bool, log_code: bool = 
         wandb.run.log_code(epath.Path(__file__).parent.parent)
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def _load_weights_and_validate(loader: _weight_loaders.WeightLoader, params_shape: at.Params) -> at.Params:
     """Loads and validates the weights. Returns a loaded subset of the weights."""
     loaded_params = loader.load(params_shape)
@@ -81,12 +86,14 @@ def _load_weights_and_validate(loader: _weight_loaders.WeightLoader, params_shap
     )
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 @at.typecheck
 def init_train_state(
     config: _config.TrainConfig, init_rng: at.KeyArrayLike, mesh: jax.sharding.Mesh, *, resume: bool
 ) -> tuple[training_utils.TrainState, Any]:
     tx = _optimizer.create_optimizer(config.optimizer, config.lr_schedule, weight_decay_mask=None)
 
+    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     def init(rng: at.KeyArrayLike, partial_params: at.Params | None = None) -> training_utils.TrainState:
         rng, model_rng = jax.random.split(rng)
         # initialize the model (and its parameters).
@@ -133,6 +140,7 @@ def init_train_state(
     return train_state, state_sharding
 
 
+# [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
 @at.typecheck
 def train_step(
     config: _config.TrainConfig,
@@ -143,6 +151,7 @@ def train_step(
     model = nnx.merge(state.model_def, state.params)
     model.train()
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @at.typecheck
     def loss_fn(
         model: _model.BaseModel, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions
@@ -191,6 +200,7 @@ def train_step(
     return new_state, info
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(config: _config.TrainConfig):
     init_logging()
     logging.info(f"Running on: {platform.node()}")

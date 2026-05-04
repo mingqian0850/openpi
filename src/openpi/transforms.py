@@ -1,3 +1,4 @@
+﻿# [解读]: 该源码文件参与 openpi 的端到端机器人 VLA 流程，负责连接配置、数据、模型或运行时边界。
 from collections.abc import Callable, Mapping, Sequence
 import dataclasses
 import re
@@ -20,8 +21,10 @@ T = TypeVar("T")
 S = TypeVar("S")
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @runtime_checkable
 class DataTransformFn(Protocol):
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         """Apply transformation to the data.
 
@@ -36,6 +39,7 @@ class DataTransformFn(Protocol):
         """
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class Group:
     """A group of transforms."""
@@ -46,6 +50,7 @@ class Group:
     # Transforms that are applied to the model output data.
     outputs: Sequence[DataTransformFn] = ()
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def push(self, *, inputs: Sequence[DataTransformFn] = (), outputs: Sequence[DataTransformFn] = ()) -> "Group":
         """Append transforms to the group and return a new group.
 
@@ -59,23 +64,27 @@ class Group:
         return Group(inputs=(*self.inputs, *inputs), outputs=(*outputs, *self.outputs))
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class CompositeTransform(DataTransformFn):
     """A composite transform that applies a sequence of transforms in order."""
 
     transforms: Sequence[DataTransformFn]
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         for transform in self.transforms:
             data = transform(data)
         return data
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def compose(transforms: Sequence[DataTransformFn]) -> DataTransformFn:
     """Compose a sequence of transforms into a single transform."""
     return CompositeTransform(transforms)
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class RepackTransform(DataTransformFn):
     """Repacks an input dictionary into a new dictionary.
@@ -96,21 +105,25 @@ class RepackTransform(DataTransformFn):
 
     structure: at.PyTree[str]
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         flat_item = flatten_dict(data)
         return jax.tree.map(lambda k: flat_item[k], self.structure)
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class InjectDefaultPrompt(DataTransformFn):
     prompt: str | None
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if self.prompt is not None and "prompt" not in data:
             data["prompt"] = np.asarray(self.prompt)
         return data
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class Normalize(DataTransformFn):
     norm_stats: at.PyTree[NormStats] | None
@@ -119,10 +132,12 @@ class Normalize(DataTransformFn):
     # If true, will raise an error if any of the keys in the norm stats are not present in the data.
     strict: bool = False
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __post_init__(self):
         if self.norm_stats is not None and self.use_quantiles:
             _assert_quantile_stats(self.norm_stats)
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if self.norm_stats is None:
             return data
@@ -134,10 +149,12 @@ class Normalize(DataTransformFn):
             strict=self.strict,
         )
 
+    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def _normalize(self, x, stats: NormStats):
         mean, std = stats.mean[..., : x.shape[-1]], stats.std[..., : x.shape[-1]]
         return (x - mean) / (std + 1e-6)
 
+    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def _normalize_quantile(self, x, stats: NormStats):
         assert stats.q01 is not None
         assert stats.q99 is not None
@@ -145,16 +162,19 @@ class Normalize(DataTransformFn):
         return (x - q01) / (q99 - q01 + 1e-6) * 2.0 - 1.0
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class Unnormalize(DataTransformFn):
     norm_stats: at.PyTree[NormStats] | None
     # If true, will use quantile normalization. Otherwise, normal z-score normalization will be used.
     use_quantiles: bool = False
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __post_init__(self):
         if self.norm_stats is not None and self.use_quantiles:
             _assert_quantile_stats(self.norm_stats)
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if self.norm_stats is None:
             return data
@@ -167,11 +187,13 @@ class Unnormalize(DataTransformFn):
             strict=True,
         )
 
+    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def _unnormalize(self, x, stats: NormStats):
         mean = pad_to_dim(stats.mean, x.shape[-1], axis=-1, value=0.0)
         std = pad_to_dim(stats.std, x.shape[-1], axis=-1, value=1.0)
         return x * (std + 1e-6) + mean
 
+    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def _unnormalize_quantile(self, x, stats: NormStats):
         assert stats.q01 is not None
         assert stats.q99 is not None
@@ -181,25 +203,30 @@ class Unnormalize(DataTransformFn):
         return (x + 1.0) / 2.0 * (q99 - q01 + 1e-6) + q01
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class ResizeImages(DataTransformFn):
     height: int
     width: int
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         data["image"] = {k: image_tools.resize_with_pad(v, self.height, self.width) for k, v in data["image"].items()}
         return data
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class SubsampleActions(DataTransformFn):
     stride: int
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         data["actions"] = data["actions"][:: self.stride]
         return data
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class DeltaActions(DataTransformFn):
     """Repacks absolute actions into delta action space."""
@@ -209,6 +236,7 @@ class DeltaActions(DataTransformFn):
     # See `make_bool_mask` for more details.
     mask: Sequence[bool] | None
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if "actions" not in data or self.mask is None:
             return data
@@ -222,6 +250,7 @@ class DeltaActions(DataTransformFn):
         return data
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class AbsoluteActions(DataTransformFn):
     """Repacks delta actions into absolute action space."""
@@ -231,6 +260,7 @@ class AbsoluteActions(DataTransformFn):
     # See `make_bool_mask` for more details.
     mask: Sequence[bool] | None
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if "actions" not in data or self.mask is None:
             return data
@@ -244,11 +274,13 @@ class AbsoluteActions(DataTransformFn):
         return data
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class TokenizePrompt(DataTransformFn):
     tokenizer: _tokenizer.PaligemmaTokenizer
     discrete_state_input: bool = False
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if (prompt := data.pop("prompt", None)) is None:
             raise ValueError("Prompt is required")
@@ -266,10 +298,12 @@ class TokenizePrompt(DataTransformFn):
         return {**data, "tokenized_prompt": tokens, "tokenized_prompt_mask": token_masks}
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class TokenizeFASTInputs(DataTransformFn):
     tokenizer: _tokenizer.FASTTokenizer
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if (prompt := data.pop("prompt", None)) is None:
             raise ValueError("Prompt is required")
@@ -288,12 +322,14 @@ class TokenizeFASTInputs(DataTransformFn):
         }
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class ExtractFASTActions(DataTransformFn):
     tokenizer: _tokenizer.FASTTokenizer
     action_horizon: int
     action_dim: int
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if "actions" not in data:
             return data
@@ -306,6 +342,7 @@ class ExtractFASTActions(DataTransformFn):
         }
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class PromptFromLeRobotTask(DataTransformFn):
     """Extracts a prompt from the current LeRobot dataset task."""
@@ -313,6 +350,7 @@ class PromptFromLeRobotTask(DataTransformFn):
     # Contains the LeRobot dataset tasks (dataset.meta.tasks).
     tasks: dict[int, str]
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         if "task_index" not in data:
             raise ValueError('Cannot extract prompt without "task_index"')
@@ -324,12 +362,14 @@ class PromptFromLeRobotTask(DataTransformFn):
         return {**data, "prompt": prompt}
 
 
+# [解读]: 该转换类把环境/数据集字段逐步整理为模型契约要求的结构，并在推理输出时支持逆向还原。
 @dataclasses.dataclass(frozen=True)
 class PadStatesAndActions(DataTransformFn):
     """Zero-pads states and actions to the model action dimension."""
 
     model_action_dim: int
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: DataDict) -> DataDict:
         data["state"] = pad_to_dim(data["state"], self.model_action_dim, axis=-1)
         if "actions" in data:
@@ -337,16 +377,19 @@ class PadStatesAndActions(DataTransformFn):
         return data
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def flatten_dict(tree: at.PyTree) -> dict:
     """Flatten a nested dictionary. Uses '/' as the separator."""
     return traverse_util.flatten_dict(tree, sep="/")
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def unflatten_dict(tree: dict) -> at.PyTree:
     """Unflatten a flattened dictionary. Assumes that '/' was used as a separator."""
     return traverse_util.unflatten_dict(tree, sep="/")
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def transform_dict(patterns: Mapping[str, str | None], tree: at.PyTree) -> at.PyTree:
     """Transform the structure of a nested dictionary using a set of patterns.
 
@@ -401,12 +444,14 @@ def transform_dict(patterns: Mapping[str, str | None], tree: at.PyTree) -> at.Py
     return unflatten_dict(output)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def apply_tree(
     tree: at.PyTree[T], selector: at.PyTree[S], fn: Callable[[T, S], T], *, strict: bool = False
 ) -> at.PyTree[T]:
     tree = flatten_dict(tree)
     selector = flatten_dict(selector)
 
+    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def transform(k: str, v: T) -> T:
         if k in selector:
             return fn(v, selector[k])
@@ -420,6 +465,7 @@ def apply_tree(
     return unflatten_dict({k: transform(k, v) for k, v in tree.items()})
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def pad_to_dim(x: np.ndarray, target_dim: int, axis: int = -1, value: float = 0.0) -> np.ndarray:
     """Pad an array to the target dimension with zeros along the specified axis."""
     current_dim = x.shape[axis]
@@ -430,6 +476,7 @@ def pad_to_dim(x: np.ndarray, target_dim: int, axis: int = -1, value: float = 0.
     return x
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_bool_mask(*dims: int) -> tuple[bool, ...]:
     """Make a boolean mask for the given dimensions.
 
@@ -452,6 +499,7 @@ def make_bool_mask(*dims: int) -> tuple[bool, ...]:
     return tuple(result)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _assert_quantile_stats(norm_stats: at.PyTree[NormStats]) -> None:
     for k, v in flatten_dict(norm_stats).items():
         if v.q01 is None or v.q99 is None:

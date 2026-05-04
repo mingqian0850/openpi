@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块提供跨训练和推理复用的基础能力，避免图像、下载、归一化和类型逻辑在各处重复实现。
 import concurrent.futures
 import datetime
 import logging
@@ -22,6 +23,7 @@ DEFAULT_CACHE_DIR = "~/.cache/openpi"
 logger = logging.getLogger(__name__)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_cache_dir() -> pathlib.Path:
     cache_dir = pathlib.Path(os.getenv(_OPENPI_DATA_HOME, DEFAULT_CACHE_DIR)).expanduser().resolve()
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -29,6 +31,7 @@ def get_cache_dir() -> pathlib.Path:
     return cache_dir
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def maybe_download(url: str, *, force_download: bool = False, **kwargs) -> pathlib.Path:
     """Download a file or directory from a remote filesystem to the local cache, and return the local path.
 
@@ -105,6 +108,7 @@ def maybe_download(url: str, *, force_download: bool = False, **kwargs) -> pathl
     return local_path
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def _download_gsutil(url: str, local_path: pathlib.Path, **kwargs) -> None:
     """Download a file or directory from GCS using gsutil if available, otherwise fall back to gcsfs."""
     if shutil.which("gsutil") is None:
@@ -120,6 +124,7 @@ def _download_gsutil(url: str, local_path: pathlib.Path, **kwargs) -> None:
     )
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def _download_fsspec(url: str, local_path: pathlib.Path, **kwargs) -> None:
     """Download a file from a remote filesystem to the local cache, and return the local path."""
     fs, _ = fsspec.core.url_to_fs(url, **kwargs)
@@ -139,6 +144,7 @@ def _download_fsspec(url: str, local_path: pathlib.Path, **kwargs) -> None:
         pbar.update(total_size - pbar.n)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _set_permission(path: pathlib.Path, target_permission: int):
     """chmod requires executable permission to be set, so we skip if the permission is already match with the target."""
     if path.stat().st_mode & target_permission == target_permission:
@@ -148,16 +154,19 @@ def _set_permission(path: pathlib.Path, target_permission: int):
     logger.debug(f"Set {path} to {target_permission}")
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _set_folder_permission(folder_path: pathlib.Path) -> None:
     """Set folder permission to be read, write and searchable."""
     _set_permission(folder_path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _ensure_permissions(path: pathlib.Path) -> None:
     """Since we are sharing cache directory with containerized runtime as well as training script, we need to
     ensure that the cache directory has the correct permissions.
     """
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def _setup_folder_permission_between_cache_dir_and_path(path: pathlib.Path) -> None:
         cache_dir = get_cache_dir()
         relative_path = path.relative_to(cache_dir)
@@ -166,6 +175,7 @@ def _ensure_permissions(path: pathlib.Path) -> None:
             _set_folder_permission(moving_path / part)
             moving_path = moving_path / part
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def _set_file_permission(file_path: pathlib.Path) -> None:
         """Set all files to be read & writable, if it is a script, keep it as a script."""
         file_rw = stat.S_IRUSR | stat.S_IWUSR | stat.S_IRGRP | stat.S_IWGRP | stat.S_IROTH | stat.S_IWOTH
@@ -186,6 +196,7 @@ def _ensure_permissions(path: pathlib.Path) -> None:
             _set_folder_permission(dir_path)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _get_mtime(year: int, month: int, day: int) -> float:
     """Get the mtime of a given date at midnight UTC."""
     date = datetime.datetime(year, month, day, tzinfo=datetime.UTC)
@@ -202,6 +213,7 @@ _INVALIDATE_CACHE_DIRS: dict[re.Pattern, float] = {
 }
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _should_invalidate_cache(cache_dir: pathlib.Path, local_path: pathlib.Path) -> bool:
     """Invalidate the cache if it is expired. Return True if the cache was invalidated."""
 

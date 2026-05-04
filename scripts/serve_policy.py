@@ -1,3 +1,4 @@
+﻿# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
 import dataclasses
 import enum
 import logging
@@ -11,6 +12,7 @@ from openpi.serving import websocket_policy_server
 from openpi.training import config as _config
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class EnvMode(enum.Enum):
     """Supported environments."""
 
@@ -20,6 +22,7 @@ class EnvMode(enum.Enum):
     LIBERO = "libero"
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass
 class Checkpoint:
     """Load a policy from a trained checkpoint."""
@@ -30,11 +33,13 @@ class Checkpoint:
     dir: str
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass
 class Default:
     """Use the default policy for the given environment."""
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass
 class Args:
     """Arguments for the serve_policy script."""
@@ -76,6 +81,7 @@ DEFAULT_CHECKPOINT: dict[EnvMode, Checkpoint] = {
 }
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_default_policy(env: EnvMode, *, default_prompt: str | None = None) -> _policy.Policy:
     """Create a default policy for the given environment."""
     if checkpoint := DEFAULT_CHECKPOINT.get(env):
@@ -85,6 +91,7 @@ def create_default_policy(env: EnvMode, *, default_prompt: str | None = None) ->
     raise ValueError(f"Unsupported environment mode: {env}")
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_policy(args: Args) -> _policy.Policy:
     """Create a policy from the given arguments."""
     match args.policy:
@@ -96,6 +103,7 @@ def create_policy(args: Args) -> _policy.Policy:
             return create_default_policy(args.env, default_prompt=args.default_prompt)
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(args: Args) -> None:
     policy = create_policy(args)
     policy_metadata = policy.metadata

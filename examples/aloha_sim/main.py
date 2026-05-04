@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 import dataclasses
 import logging
 import pathlib
@@ -11,6 +12,7 @@ import saver as _saver
 import tyro
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass
 class Args:
     out_dir: pathlib.Path = pathlib.Path("data/aloha_sim/videos")
@@ -26,6 +28,7 @@ class Args:
     display: bool = False
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(args: Args) -> None:
     runtime = _runtime.Runtime(
         environment=_env.AlohaSimEnvironment(

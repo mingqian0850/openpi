@@ -1,4 +1,5 @@
-# coding=utf-8
+﻿# coding=utf-8
+# [解读]: 该模块承接 PyTorch 版本模型路径，让同一套训练配置可以服务非 JAX 的权重加载、预处理与推理。
 # Copyright 2024 Google AI and The HuggingFace Team. All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -38,9 +39,11 @@ from .configuration_siglip import SiglipConfig, SiglipTextConfig, SiglipVisionCo
 logger = logging.get_logger(__name__)
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def _trunc_normal_(tensor, mean, std, a, b):
     # Cut & paste from PyTorch official master until it's in a few official releases - RW
     # Method based on https://people.sc.fsu.edu/~jburkardt/presentations/truncated_normal.pdf
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def norm_cdf(x):
         # Computes standard normal cumulative distribution function
         return (1.0 + math.erf(x / math.sqrt(2.0))) / 2.0
@@ -74,6 +77,7 @@ def _trunc_normal_(tensor, mean, std, a, b):
     tensor.clamp_(min=a, max=b)
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def trunc_normal_tf_(
     tensor: torch.Tensor, mean: float = 0.0, std: float = 1.0, a: float = -2.0, b: float = 2.0
 ) -> torch.Tensor:
@@ -100,6 +104,7 @@ def trunc_normal_tf_(
         tensor.mul_(std).add_(mean)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def variance_scaling_(tensor, scale=1.0, mode="fan_in", distribution="normal"):
     fan_in, fan_out = _calculate_fan_in_and_fan_out(tensor)
     if mode == "fan_in":
@@ -125,10 +130,12 @@ def variance_scaling_(tensor, scale=1.0, mode="fan_in", distribution="normal"):
         raise ValueError(f"invalid distribution {distribution}")
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def lecun_normal_(tensor):
     variance_scaling_(tensor, mode="fan_in", distribution="truncated_normal")
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def default_flax_embed_init(tensor):
     variance_scaling_(tensor, mode="fan_in", distribution="normal")
 
@@ -140,6 +147,7 @@ def default_flax_embed_init(tensor):
     """
 )
 # Copied from transformers.models.clip.modeling_clip.CLIPVisionModelOutput with CLIP->Siglip
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipVisionModelOutput(ModelOutput):
     r"""
     image_embeds (`torch.FloatTensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
@@ -159,6 +167,7 @@ class SiglipVisionModelOutput(ModelOutput):
     """
 )
 # Copied from transformers.models.clip.modeling_clip.CLIPTextModelOutput with CLIP->Siglip
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipTextModelOutput(ModelOutput):
     r"""
     text_embeds (`torch.FloatTensor` of shape `(batch_size, output_dim)` *optional* returned when model is initialized with `with_projection=True`):
@@ -174,6 +183,7 @@ class SiglipTextModelOutput(ModelOutput):
 @dataclass
 @auto_docstring
 # Copied from transformers.models.clip.modeling_clip.CLIPOutput with CLIP->Siglip
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipOutput(ModelOutput):
     r"""
     loss (`torch.FloatTensor` of shape `(1,)`, *optional*, returned when `return_loss` is `True`):
@@ -202,6 +212,7 @@ class SiglipOutput(ModelOutput):
     text_model_output: BaseModelOutputWithPooling = None
     vision_model_output: BaseModelOutputWithPooling = None
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def to_tuple(self) -> tuple[Any]:
         return tuple(
             self[k] if k not in ["text_model_output", "vision_model_output"] else getattr(self, k).to_tuple()
@@ -209,6 +220,7 @@ class SiglipOutput(ModelOutput):
         )
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipVisionEmbeddings(nn.Module):
     def __init__(self, config: SiglipVisionConfig):
         super().__init__()
@@ -230,6 +242,7 @@ class SiglipVisionEmbeddings(nn.Module):
         self.position_embedding = nn.Embedding(self.num_positions, self.embed_dim)
         self.register_buffer("position_ids", torch.arange(self.num_positions).expand((1, -1)), persistent=False)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def interpolate_pos_encoding(self, embeddings: torch.Tensor, height: int, width: int) -> torch.Tensor:
         """
         This method allows to interpolate the pre-trained position encodings, to be able to use the model on higher resolution
@@ -268,6 +281,7 @@ class SiglipVisionEmbeddings(nn.Module):
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
         return patch_pos_embed
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(self, pixel_values: torch.FloatTensor, interpolate_pos_encoding=False) -> torch.Tensor:
         _, _, height, width = pixel_values.shape
         target_dtype = self.patch_embedding.weight.dtype
@@ -282,6 +296,7 @@ class SiglipVisionEmbeddings(nn.Module):
 
 
 # Copied from transformers.models.clip.modeling_clip.CLIPTextEmbeddings with CLIP->Siglip
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipTextEmbeddings(nn.Module):
     def __init__(self, config: SiglipTextConfig):
         super().__init__()
@@ -295,6 +310,7 @@ class SiglipTextEmbeddings(nn.Module):
             "position_ids", torch.arange(config.max_position_embeddings).expand((1, -1)), persistent=False
         )
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(
         self,
         input_ids: Optional[torch.LongTensor] = None,
@@ -322,6 +338,7 @@ class SiglipTextEmbeddings(nn.Module):
         return embeddings
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def eager_attention_forward(
     module: nn.Module,
     query: torch.Tensor,
@@ -345,9 +362,11 @@ def eager_attention_forward(
     return attn_output, attn_weights
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipAttention(nn.Module):
     """Multi-headed attention from 'Attention Is All You Need' paper"""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config):
         super().__init__()
         self.config = config
@@ -368,6 +387,7 @@ class SiglipAttention(nn.Module):
         self.q_proj = nn.Linear(self.embed_dim, self.embed_dim)
         self.out_proj = nn.Linear(self.embed_dim, self.embed_dim)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -417,6 +437,7 @@ class SiglipAttention(nn.Module):
 
 
 # Copied from transformers.models.clip.modeling_clip.CLIPMLP with CLIP->Siglip
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipMLP(nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -425,6 +446,7 @@ class SiglipMLP(nn.Module):
         self.fc1 = nn.Linear(config.hidden_size, config.intermediate_size)
         self.fc2 = nn.Linear(config.intermediate_size, config.hidden_size)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
         hidden_states = self.fc1(hidden_states)
         hidden_states = self.activation_fn(hidden_states)
@@ -432,6 +454,7 @@ class SiglipMLP(nn.Module):
         return hidden_states
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipEncoderLayer(GradientCheckpointingLayer):
     def __init__(self, config: Union[SiglipVisionConfig, SiglipTextConfig]):
         super().__init__()
@@ -441,6 +464,7 @@ class SiglipEncoderLayer(GradientCheckpointingLayer):
         self.layer_norm2 = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_eps)
         self.mlp = SiglipMLP(config)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(
         self,
         hidden_states: torch.Tensor,
@@ -480,6 +504,7 @@ class SiglipEncoderLayer(GradientCheckpointingLayer):
         return outputs
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @auto_docstring
 class SiglipPreTrainedModel(PreTrainedModel):
     config_class = SiglipConfig
@@ -498,6 +523,7 @@ class SiglipPreTrainedModel(PreTrainedModel):
     _supports_flex_attn = True
     _supports_attention_backend = True
 
+    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     def _init_weights(self, module):
         """Initialize the weights"""
         if isinstance(module, SiglipVisionEmbeddings):
@@ -546,6 +572,7 @@ class SiglipPreTrainedModel(PreTrainedModel):
 
 
 # Copied from transformers.models.altclip.modeling_altclip.AltCLIPEncoder with AltCLIP->Siglip
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipEncoder(nn.Module):
     """
     Transformer encoder consisting of `config.num_hidden_layers` self attention layers. Each layer is a
@@ -555,6 +582,7 @@ class SiglipEncoder(nn.Module):
         config: SiglipConfig
     """
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config: SiglipConfig):
         super().__init__()
         self.config = config
@@ -562,6 +590,7 @@ class SiglipEncoder(nn.Module):
         self.gradient_checkpointing = False
 
     # Ignore copy
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     def forward(
         self,
@@ -626,6 +655,7 @@ class SiglipEncoder(nn.Module):
         )
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipTextTransformer(nn.Module):
     def __init__(self, config: SiglipTextConfig):
         super().__init__()
@@ -638,6 +668,7 @@ class SiglipTextTransformer(nn.Module):
         self.head = nn.Linear(embed_dim, config.projection_size)
         self._use_flash_attention_2 = config._attn_implementation == "flash_attention_2"
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     @auto_docstring
     def forward(
@@ -694,21 +725,26 @@ class SiglipTextTransformer(nn.Module):
     The text model from SigLIP without any head or projection on top.
     """
 )
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipTextModel(SiglipPreTrainedModel):
     config_class = SiglipTextConfig
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config: SiglipTextConfig):
         super().__init__(config)
         self.text_model = SiglipTextTransformer(config)
         # Initialize weights and apply final processing
         self.post_init()
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_input_embeddings(self) -> nn.Module:
         return self.text_model.embeddings.token_embedding
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def set_input_embeddings(self, value):
         self.text_model.embeddings.token_embedding = value
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     @auto_docstring
     def forward(
@@ -745,6 +781,7 @@ class SiglipTextModel(SiglipPreTrainedModel):
         )
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipVisionTransformer(nn.Module):
     def __init__(self, config: SiglipVisionConfig):
         super().__init__()
@@ -758,6 +795,7 @@ class SiglipVisionTransformer(nn.Module):
         if self.use_head:
             self.head = SiglipMultiheadAttentionPoolingHead(config)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     @auto_docstring
     def forward(
@@ -796,9 +834,11 @@ class SiglipVisionTransformer(nn.Module):
         )
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipMultiheadAttentionPoolingHead(nn.Module):
     """Multihead Attention Pooling."""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config: SiglipVisionConfig):
         super().__init__()
 
@@ -807,6 +847,7 @@ class SiglipMultiheadAttentionPoolingHead(nn.Module):
         self.layernorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.mlp = SiglipMLP(config)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(self, hidden_state):
         batch_size = hidden_state.shape[0]
         probe = self.probe.repeat(batch_size, 1, 1)
@@ -825,10 +866,12 @@ class SiglipMultiheadAttentionPoolingHead(nn.Module):
     The vision model from SigLIP without any head or projection on top.
     """
 )
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipVisionModel(SiglipPreTrainedModel):
     config_class = SiglipVisionConfig
     main_input_name = "pixel_values"
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config: SiglipVisionConfig):
         super().__init__(config)
 
@@ -837,9 +880,11 @@ class SiglipVisionModel(SiglipPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_input_embeddings(self) -> nn.Module:
         return self.vision_model.embeddings.patch_embedding
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     @auto_docstring
     def forward(
@@ -878,10 +923,12 @@ class SiglipVisionModel(SiglipPreTrainedModel):
         )
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @auto_docstring
 class SiglipModel(SiglipPreTrainedModel):
     config_class = SiglipConfig
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config: SiglipConfig):
         super().__init__(config)
 
@@ -914,6 +961,7 @@ class SiglipModel(SiglipPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @auto_docstring
     def get_text_features(
         self,
@@ -960,6 +1008,7 @@ class SiglipModel(SiglipPreTrainedModel):
 
         return pooled_output
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @auto_docstring
     def get_image_features(
         self,
@@ -1009,6 +1058,7 @@ class SiglipModel(SiglipPreTrainedModel):
 
         return pooled_output
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     @auto_docstring
     def forward(
@@ -1114,9 +1164,11 @@ class SiglipModel(SiglipPreTrainedModel):
     the patch tokens) e.g. for ImageNet.
     """
 )
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class SiglipForImageClassification(SiglipPreTrainedModel):
     main_input_name = "pixel_values"
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(self, config: SiglipConfig) -> None:
         super().__init__(config)
 
@@ -1135,6 +1187,7 @@ class SiglipForImageClassification(SiglipPreTrainedModel):
         # Initialize weights and apply final processing
         self.post_init()
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @can_return_tuple
     @auto_docstring
     def forward(

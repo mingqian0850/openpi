@@ -1,3 +1,4 @@
+﻿# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
 """
 PyTorch training entrypoint for PI0/PI05 with multi-GPU and multi-node (DDP) support.
 This script mirrors the behavior of the JAX trainer (`scripts/train.py`) but runs
@@ -47,9 +48,11 @@ import openpi.training.config as _config
 import openpi.training.data_loader as _data
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def init_logging():
     level_mapping = {"DEBUG": "D", "INFO": "I", "WARNING": "W", "ERROR": "E", "CRITICAL": "C"}
 
+    # [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
     class CustomFormatter(logging.Formatter):
         def format(self, record):
             record.levelname = level_mapping.get(record.levelname, record.levelname)
@@ -69,6 +72,7 @@ def init_logging():
         logger.handlers[0].setFormatter(formatter)
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def init_wandb(config: _config.TrainConfig, *, resuming: bool, enabled: bool = True):
     """Initialize wandb logging."""
     if not enabled:
@@ -91,6 +95,7 @@ def init_wandb(config: _config.TrainConfig, *, resuming: bool, enabled: bool = T
         (ckpt_dir / "wandb_id.txt").write_text(wandb.run.id)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def setup_ddp():
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     use_ddp = world_size > 1
@@ -109,12 +114,14 @@ def setup_ddp():
     return use_ddp, local_rank, device
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def cleanup_ddp():
     if torch.distributed.is_initialized():
         torch.distributed.barrier()
         torch.distributed.destroy_process_group()
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def set_seed(seed: int, local_rank: int):
     torch.manual_seed(seed + local_rank)
     np.random.seed(seed + local_rank)
@@ -122,12 +129,14 @@ def set_seed(seed: int, local_rank: int):
         torch.cuda.manual_seed_all(seed + local_rank)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def build_datasets(config: _config.TrainConfig):
     # Use the unified data loader with PyTorch framework
     data_loader = _data.create_data_loader(config, framework="pytorch", shuffle=True)
     return data_loader, data_loader.data_config()
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_model_state_dict(model):
     """Get state dict from model, handling DDP wrapper."""
     return (
@@ -137,6 +146,7 @@ def get_model_state_dict(model):
     )
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_model_parameters(model):
     """Get parameters from model, handling DDP wrapper."""
     return (
@@ -146,6 +156,7 @@ def get_model_parameters(model):
     )
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def save_checkpoint(model, optimizer, global_step, config, is_main, data_config):
     """Save a checkpoint with model state, optimizer state, and metadata."""
     if not is_main:
@@ -194,6 +205,7 @@ def save_checkpoint(model, optimizer, global_step, config, is_main, data_config)
             wandb.log({"checkpoint_step": global_step}, step=global_step)
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def load_checkpoint(model, optimizer, checkpoint_dir, device):
     """Load the latest checkpoint and return the global step."""
     checkpoint_steps = [
@@ -271,6 +283,7 @@ def load_checkpoint(model, optimizer, checkpoint_dir, device):
         raise
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def get_latest_checkpoint_step(checkpoint_dir):
     """Get the latest checkpoint step number from a checkpoint directory."""
     checkpoint_steps = [
@@ -281,6 +294,7 @@ def get_latest_checkpoint_step(checkpoint_dir):
     return max(checkpoint_steps) if checkpoint_steps else None
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def log_memory_usage(device, step, phase="unknown"):
     """Log detailed memory usage information."""
     if not torch.cuda.is_available():
@@ -306,6 +320,7 @@ def log_memory_usage(device, step, phase="unknown"):
     )
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def train_loop(config: _config.TrainConfig):
     use_ddp, local_rank, device = setup_ddp()
     is_main = (not use_ddp) or (dist.get_rank() == 0)
@@ -469,6 +484,7 @@ def train_loop(config: _config.TrainConfig):
         global_step = load_checkpoint(model, optim, config.checkpoint_dir, device)
         logging.info(f"Resumed training from step {global_step}")
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def lr_schedule(step: int):
         if step < warmup_steps:
             # Match JAX behavior: start from peak_lr / (warmup_steps + 1)
@@ -622,6 +638,7 @@ def train_loop(config: _config.TrainConfig):
     cleanup_ddp()
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main():
     init_logging()
     config = _config.cli()

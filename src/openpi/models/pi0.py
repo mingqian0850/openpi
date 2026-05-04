@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
 import logging
 
 import einops
@@ -16,6 +17,7 @@ from openpi.shared import array_typing as at
 logger = logging.getLogger("openpi")
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_attn_mask(input_mask, mask_ar):
     """Adapted from big_vision.
 
@@ -44,6 +46,7 @@ def make_attn_mask(input_mask, mask_ar):
     return jnp.logical_and(attn_mask, valid_mask)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 @at.typecheck
 def posemb_sincos(
     pos: at.Real[at.Array, " b"], embedding_dim: int, min_period: float, max_period: float
@@ -63,6 +66,7 @@ def posemb_sincos(
     return jnp.concatenate([jnp.sin(sinusoid_input), jnp.cos(sinusoid_input)], axis=-1)
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class Pi0(_model.BaseModel):
     def __init__(self, config: pi0_config.Pi0Config, rngs: nnx.Rngs):
         super().__init__(config.action_dim, config.action_horizon, config.max_token_len)
@@ -102,6 +106,7 @@ class Pi0(_model.BaseModel):
         # This attribute gets automatically set by model.train() and model.eval().
         self.deterministic = True
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @at.typecheck
     def embed_prefix(
         self, obs: _model.Observation
@@ -136,6 +141,7 @@ class Pi0(_model.BaseModel):
         ar_mask = jnp.array(ar_mask)
         return tokens, input_mask, ar_mask
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @at.typecheck
     def embed_suffix(
         self, obs: _model.Observation, noisy_actions: _model.Actions, timestep: at.Float[at.Array, " b"]
@@ -185,6 +191,7 @@ class Pi0(_model.BaseModel):
         ar_mask = jnp.array(ar_mask)
         return tokens, input_mask, ar_mask, adarms_cond
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def compute_loss(
         self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
@@ -213,6 +220,7 @@ class Pi0(_model.BaseModel):
 
         return jnp.mean(jnp.square(v_t - u_t), axis=-1)
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def sample_actions(
         self,
@@ -236,6 +244,7 @@ class Pi0(_model.BaseModel):
         positions = jnp.cumsum(prefix_mask, axis=1) - 1
         _, kv_cache = self.PaliGemma.llm([prefix_tokens, None], mask=prefix_attn_mask, positions=positions)
 
+        # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
         def step(carry):
             x_t, time = carry
             suffix_tokens, suffix_mask, suffix_ar_mask, adarms_cond = self.embed_suffix(
@@ -270,6 +279,7 @@ class Pi0(_model.BaseModel):
 
             return x_t + dt * v_t, time + dt
 
+        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
         def cond(carry):
             x_t, time = carry
             # robust to floating-point error

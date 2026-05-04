@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于训练层，负责把配置、数据、优化器、分片或 checkpoint 组合成可恢复的训练流程。
 """RoboArena baseline policy configs."""
 
 from typing import TypeAlias
@@ -12,6 +13,7 @@ import openpi.transforms as _transforms
 ModelType: TypeAlias = _model.ModelType
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_roboarena_configs():
     # Import here to avoid circular imports.
     from openpi.training.config import AssetsConfig

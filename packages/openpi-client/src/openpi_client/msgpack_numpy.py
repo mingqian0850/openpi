@@ -1,3 +1,4 @@
+﻿# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
 """Adds NumPy array support to msgpack.
 
 msgpack is good for (de)serializing data over a network for multiple reasons:
@@ -18,6 +19,7 @@ import msgpack
 import numpy as np
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def pack_array(obj):
     if (isinstance(obj, (np.ndarray, np.generic))) and obj.dtype.kind in ("V", "O", "c"):
         raise ValueError(f"Unsupported dtype: {obj.dtype}")
@@ -40,6 +42,7 @@ def pack_array(obj):
     return obj
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def unpack_array(obj):
     if b"__ndarray__" in obj:
         return np.ndarray(buffer=obj[b"data"], dtype=np.dtype(obj[b"dtype"]), shape=obj[b"shape"])

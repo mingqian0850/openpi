@@ -1,3 +1,4 @@
+﻿# [解读]: 该测试源码用于固定关键行为，避免模型、数据转换或客户端协议在重构时悄悄退化。
 import numpy as np
 import pytest
 import tree
@@ -5,6 +6,7 @@ import tree
 from openpi_client import msgpack_numpy
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _check(expected, actual):
     if isinstance(expected, np.ndarray):
         assert expected.shape == actual.shape
@@ -39,6 +41,7 @@ def _check(expected, actual):
         np.ones((2, 3), dtype=np.float64),  # 2D ones with double precision
     ],
 )
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def test_pack_unpack(data):
     packed = msgpack_numpy.packb(data)
     unpacked = msgpack_numpy.unpackb(packed)

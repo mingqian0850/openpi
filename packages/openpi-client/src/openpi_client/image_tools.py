@@ -1,7 +1,9 @@
+﻿# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
 import numpy as np
 from PIL import Image
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def convert_to_uint8(img: np.ndarray) -> np.ndarray:
     """Converts an image to uint8 if it is a float image.
 
@@ -12,6 +14,7 @@ def convert_to_uint8(img: np.ndarray) -> np.ndarray:
     return img
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def resize_with_pad(images: np.ndarray, height: int, width: int, method=Image.BILINEAR) -> np.ndarray:
     """Replicates tf.image.resize_with_pad for multiple images using PIL. Resizes a batch of images to a target height.
 
@@ -35,6 +38,7 @@ def resize_with_pad(images: np.ndarray, height: int, width: int, method=Image.BI
     return resized.reshape(*original_shape[:-3], *resized.shape[-3:])
 
 
+# [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
 def _resize_with_pad_pil(image: Image.Image, height: int, width: int, method: int) -> Image.Image:
     """Replicates tf.image.resize_with_pad for one image using PIL. Resizes an image to a target height and
     width without distortion by padding with zeros.

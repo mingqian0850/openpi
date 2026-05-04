@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于训练层，负责把配置、数据、优化器、分片或 checkpoint 组合成可恢复的训练流程。
 import contextlib
 import logging
 
@@ -10,10 +11,12 @@ FSDP_AXIS = "fsdp"
 DATA_AXIS = (BATCH_AXIS, FSDP_AXIS)
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class _MeshState:
     active_mesh: jax.sharding.Mesh | None = None
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_mesh(num_fsdp_devices: int) -> jax.sharding.Mesh:
     if jax.device_count() % num_fsdp_devices != 0:
         raise ValueError(
@@ -23,6 +26,7 @@ def make_mesh(num_fsdp_devices: int) -> jax.sharding.Mesh:
     return jax.make_mesh(mesh_shape, (BATCH_AXIS, FSDP_AXIS))
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 @contextlib.contextmanager
 def set_mesh(mesh: jax.sharding.Mesh):
     """Plumbing the mesh deep into the module tree is extremely cumbersome; until the JAX team lands a better API, a
@@ -37,6 +41,7 @@ def set_mesh(mesh: jax.sharding.Mesh):
         _MeshState.active_mesh = None
 
 
+# [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
 def activation_sharding_constraint(pytree):
     if _MeshState.active_mesh is None:
         return pytree
@@ -45,6 +50,7 @@ def activation_sharding_constraint(pytree):
     )
 
 
+# [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
 def fsdp_sharding(
     pytree,
     mesh: jax.sharding.Mesh,
@@ -67,6 +73,7 @@ def fsdp_sharding(
     """
     min_size_bytes = min_size_mbytes * 2**20
 
+    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def _shard_arr(kp, array: jax.ShapeDtypeStruct):
         # if fsdp is not actually going to be used, replicate everything to avoid extraneous logging
         if mesh.shape[FSDP_AXIS] == 1:

@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 # ruff: noqa
 
 import contextlib
@@ -23,6 +24,7 @@ faulthandler.enable()
 DROID_CONTROL_FREQUENCY = 15
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass
 class Args:
     # Hardware parameters
@@ -51,12 +53,14 @@ class Args:
 # We are using Ctrl+C to optionally terminate rollouts early -- however, if we press Ctrl+C while the policy server is
 # waiting for a new action chunk, it will raise an exception and the server connection dies.
 # This context manager temporarily prevents Ctrl+C and delays it after the server call is complete.
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 @contextlib.contextmanager
 def prevent_keyboard_interrupt():
     """Temporarily prevent keyboard interrupts by delaying them until after the protected code."""
     interrupted = False
     original_handler = signal.getsignal(signal.SIGINT)
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def handler(signum, frame):
         nonlocal interrupted
         interrupted = True
@@ -70,6 +74,7 @@ def prevent_keyboard_interrupt():
             raise KeyboardInterrupt
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(args: Args):
     # Make sure external camera is specified by user -- we only use one external camera for the policy
     assert (
@@ -195,6 +200,7 @@ def main(args: Args):
     print(f"Results saved to {csv_filename}")
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _extract_observation(args: Args, obs_dict, *, save_to_disk=False):
     image_observations = obs_dict["image"]
     left_image, right_image, wrist_image = None, None, None

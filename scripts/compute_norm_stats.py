@@ -1,3 +1,4 @@
+﻿# [解读]: 该脚本是命令行入口，用来把配置化源码流程落地为训练、统计或推理服务任务。
 """Compute normalization statistics for a config.
 
 This script is used to compute the normalization statistics for a given config. It
@@ -16,11 +17,13 @@ import openpi.training.data_loader as _data_loader
 import openpi.transforms as transforms
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class RemoveStrings(transforms.DataTransformFn):
     def __call__(self, x: dict) -> dict:
         return {k: v for k, v in x.items() if not np.issubdtype(np.asarray(v).dtype, np.str_)}
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_torch_dataloader(
     data_config: _config.DataConfig,
     action_horizon: int,
@@ -57,6 +60,7 @@ def create_torch_dataloader(
     return data_loader, num_batches
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_rlds_dataloader(
     data_config: _config.DataConfig,
     action_horizon: int,
@@ -86,6 +90,7 @@ def create_rlds_dataloader(
     return data_loader, num_batches
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(config_name: str, max_frames: int | None = None):
     config = _config.get_config(config_name)
     data_config = config.data.create(config.assets_dirs, config.model)

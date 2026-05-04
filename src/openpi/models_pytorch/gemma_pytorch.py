@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块承接 PyTorch 版本模型路径，让同一套训练配置可以服务非 JAX 的权重加载、预处理与推理。
 from typing import Literal
 
 import torch
@@ -8,6 +9,7 @@ from transformers.models.auto import CONFIG_MAPPING
 from transformers.models.gemma import modeling_gemma
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class PaliGemmaWithExpertModel(nn.Module):
     def __init__(
         self,
@@ -59,6 +61,7 @@ class PaliGemmaWithExpertModel(nn.Module):
 
         self.to_bfloat16_for_selected_params(precision)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def to_bfloat16_for_selected_params(self, precision: Literal["bfloat16", "float32"] = "bfloat16"):
         if precision == "bfloat16":
             self.to(dtype=torch.bfloat16)
@@ -81,12 +84,15 @@ class PaliGemmaWithExpertModel(nn.Module):
             if any(selector in name for selector in params_to_keep_float32):
                 param.data = param.data.to(dtype=torch.float32)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def embed_image(self, image: torch.Tensor):
         return self.paligemma.model.get_image_features(image)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def embed_language_tokens(self, tokens: torch.Tensor):
         return self.paligemma.language_model.embed_tokens(tokens)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def forward(
         self,
         attention_mask: torch.Tensor | None = None,
@@ -154,6 +160,7 @@ class PaliGemmaWithExpertModel(nn.Module):
                 self._debug_gc_printed = True
 
             # Define the complete layer computation function for gradient checkpointing
+            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
             def compute_layer_complete(layer_idx, inputs_embeds, attention_mask, position_ids, adarms_cond):
                 models = [self.paligemma.language_model, self.gemma_expert.model]
 
@@ -258,6 +265,7 @@ class PaliGemmaWithExpertModel(nn.Module):
 
             # final norm
             # Define final norm computation function for gradient checkpointing
+            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
             def compute_final_norms(inputs_embeds, adarms_cond):
                 outputs_embeds = []
                 for i, hidden_states in enumerate(inputs_embeds):

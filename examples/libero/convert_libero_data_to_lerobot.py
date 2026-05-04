@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 """
 Minimal example script for converting a dataset to LeRobot format.
 
@@ -34,6 +35,7 @@ RAW_DATASET_NAMES = [
 ]  # For simplicity we will combine multiple Libero datasets into one training dataset
 
 
+# [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
 def main(data_dir: str, *, push_to_hub: bool = False):
     # Clean up any existing dataset in the output directory
     output_path = HF_LEROBOT_HOME / REPO_NAME

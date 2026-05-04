@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
 # Copyright 2024 Big Vision Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,6 +25,7 @@ import numpy as np
 import openpi.training.sharding as sharding
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def posemb_sincos_2d(h, w, width, temperature=10_000.0, dtype=jnp.float32):
     """Follows the MoCo v3 logic."""
     y, x = jnp.mgrid[:h, :w]
@@ -37,6 +39,7 @@ def posemb_sincos_2d(h, w, width, temperature=10_000.0, dtype=jnp.float32):
     return jnp.asarray(pe, dtype)[None, :, :]
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_posemb(self, typ, seqshape, width, name, dtype=jnp.float32):
     if typ == "learn":
         return self.param(
@@ -50,6 +53,7 @@ def get_posemb(self, typ, seqshape, width, name, dtype=jnp.float32):
     raise ValueError(f"Unknown posemb type: {typ}")
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class MlpBlock(nn.Module):
     """Transformer MLP / feed-forward block."""
 
@@ -57,6 +61,7 @@ class MlpBlock(nn.Module):
     dropout: float = 0.0
     dtype_mm: str = "float32"
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x, deterministic=True):  # noqa: FBT002
         """Applies Transformer MlpBlock module."""
@@ -72,6 +77,7 @@ class MlpBlock(nn.Module):
         return nn.Dense(d, dtype=self.dtype_mm, **inits)(x)
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class Encoder1DBlock(nn.Module):
     """Single transformer encoder block (MHSA + MLP)."""
 
@@ -80,6 +86,7 @@ class Encoder1DBlock(nn.Module):
     dropout: float = 0.0
     dtype_mm: str = "float32"
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x, deterministic=True):  # noqa: FBT002
         out = {}
@@ -108,6 +115,7 @@ class Encoder1DBlock(nn.Module):
         return x, out
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class Encoder(nn.Module):
     """Transformer Model Encoder for sequence to sequence translation."""
 
@@ -119,6 +127,7 @@ class Encoder(nn.Module):
     remat_policy: str = "nothing_saveable"
     dtype_mm: str = "float32"
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x, deterministic=True):  # noqa: FBT002
         out = {}
@@ -161,6 +170,7 @@ class Encoder(nn.Module):
         return nn.LayerNorm(name="encoder_norm", dtype=self.dtype_mm)(x), out
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class MAPHead(nn.Module):
     """Multihead Attention Pooling."""
 
@@ -168,6 +178,7 @@ class MAPHead(nn.Module):
     num_heads: int = 12
     dtype_mm: str = "float32"
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x):
         n, _, d = x.shape  # n,l,d
@@ -185,6 +196,7 @@ class MAPHead(nn.Module):
         return x[:, 0]
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class _Module(nn.Module):
     """ViT model."""
 
@@ -204,6 +216,7 @@ class _Module(nn.Module):
     remat_policy: str = "nothing_saveable"
     dtype_mm: str = "float32"
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, image, *, train=False):
         out = {}
@@ -290,11 +303,13 @@ class _Module(nn.Module):
         return x, out
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def Module(num_classes=None, *, variant=None, **kw):  # pylint: disable=invalid-name  # noqa: N802
     """Factory function, because linen really don't like what I'm doing!"""
     return _Module(num_classes, **{**decode_variant(variant), **kw})
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def decode_variant(variant):
     """Converts a string like "B" or "B/32" into a params dict."""
     if variant is None:

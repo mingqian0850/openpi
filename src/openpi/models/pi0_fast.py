@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
 import dataclasses
 import logging
 from typing import Any
@@ -20,6 +21,7 @@ logger = logging.getLogger("openpi")
 PALIGEMMA_EOS_TOKEN = 1
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_attn_mask(input_mask, mask_ar):
     """Adapted from big_vision.
 
@@ -48,6 +50,7 @@ def make_attn_mask(input_mask, mask_ar):
     return jnp.logical_and(attn_mask, valid_mask)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 @jax.vmap
 def left_to_right_align(x, input_mask, attn_mask):
     """Converts input from left-align to right-aligned."""
@@ -64,6 +67,7 @@ def left_to_right_align(x, input_mask, attn_mask):
     return x, input_mask, attn_mask
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def put_along_last_axis(arr, indices, values):
     """Like np.put_along_axis(..., axis=-1), since jax is missing it."""
     assert arr.ndim == indices.ndim == values.ndim, (arr.ndim, indices.ndim, values.ndim)
@@ -73,6 +77,7 @@ def put_along_last_axis(arr, indices, values):
     return jnp.where(put_mask, put_values, arr)
 
 
+# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class Pi0FASTConfig(_model.BaseModelConfig):
     dtype: str = "bfloat16"
@@ -88,15 +93,18 @@ class Pi0FASTConfig(_model.BaseModelConfig):
     # Keyword arguments for the fast model tokenizer.
     fast_model_tokenizer_kwargs: dict[str, Any] | None = None
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     @override
     def model_type(self) -> _model.ModelType:
         return _model.ModelType.PI0_FAST
 
+    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     @override
     def create(self, rng: at.KeyArrayLike) -> "Pi0FAST":
         return Pi0FAST(self, rngs=nnx.Rngs(rng))
 
+    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     @override
     def inputs_spec(self, *, batch_size: int = 1) -> tuple[_model.Observation, _model.Actions]:
         image_spec = jax.ShapeDtypeStruct([batch_size, *_model.IMAGE_RESOLUTION, 3], jnp.float32)
@@ -124,6 +132,7 @@ class Pi0FASTConfig(_model.BaseModelConfig):
 
         return observation_spec, action_spec
 
+    # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
     def get_freeze_filter(self) -> nnx.filterlib.Filter:
         """Returns the freeze filter based on the model config."""
         if "lora" in self.paligemma_variant:
@@ -131,6 +140,7 @@ class Pi0FASTConfig(_model.BaseModelConfig):
         return nnx.Nothing
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class Pi0FAST(_model.BaseModel):
     def __init__(self, config: Pi0FASTConfig, rngs: nnx.Rngs):
         super().__init__(config.action_dim, config.action_horizon, config.max_token_len)
@@ -156,6 +166,7 @@ class Pi0FAST(_model.BaseModel):
         img.lazy_init(next(iter(config.fake_obs().images.values())), train=False, rngs=rngs)
         self.PaliGemma = nnx.Dict(llm=llm, img=img)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @at.typecheck
     def embed_inputs(
         self, obs: _model.Observation
@@ -194,6 +205,7 @@ class Pi0FAST(_model.BaseModel):
             jnp.concatenate(ar_mask, axis=1),
         )
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def compute_loss(
         self, rng: at.KeyArrayLike, observation: _model.Observation, actions: _model.Actions, *, train: bool = False
@@ -232,6 +244,7 @@ class Pi0FAST(_model.BaseModel):
         token_pplx = jnp.sum(targets * logp, axis=-1)
         return -jnp.sum(token_pplx * loss_mask, axis=-1) / jnp.clip(jnp.sum(loss_mask, -1), 1)
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     @override
     def sample_actions(
         self,
@@ -270,6 +283,7 @@ class Pi0FAST(_model.BaseModel):
         last_logit = prefix_logits[:, -1:]
         output_tokens = jnp.zeros((last_logit.shape[0], max_decoding_steps))
 
+        # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
         def step(carry):
             rng, last_logit, output_tokens, cache, _, step = carry
 
@@ -302,6 +316,7 @@ class Pi0FAST(_model.BaseModel):
 
             return rng, last_logit, output_tokens, kv_cache, all_eos, step + 1
 
+        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
         def cond(carry):
             _, _, _, _, all_eos, step = carry
             return (~all_eos) & (step < max_decoding_steps)

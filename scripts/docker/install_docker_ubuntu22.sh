@@ -1,4 +1,5 @@
-#!/bin/bash
+﻿#!/bin/bash
+# [解读]: 该 Shell 脚本封装系统依赖安装或容器环境准备步骤，减少手动配置带来的环境漂移。
 
 # Add Docker's official GPG key:
 sudo apt-get update

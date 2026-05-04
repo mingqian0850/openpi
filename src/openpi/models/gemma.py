@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
 # Copyright 2024 Big Vision Authors.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -41,6 +42,7 @@ import openpi.training.sharding as sharding
 PALIGEMMA_VOCAB_SIZE = 257_152
 
 
+# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass
 class Config:
     width: int
@@ -55,6 +57,7 @@ class Config:
 Variant = Literal["dummy", "gemma_300m", "gemma_300m_lora", "gemma_2b", "gemma_2b_lora"]
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_config(variant: Variant) -> Config:
     """Returns config for specified gemma variant."""
     if variant == "dummy":
@@ -109,8 +112,10 @@ def get_config(variant: Variant) -> Config:
     raise ValueError(f"Unknown variant: {variant}")
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @at.typecheck
 class RMSNorm(nn.Module):
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x, cond):
         dtype = x.dtype  # original dtype, could be half-precision
@@ -131,6 +136,7 @@ class RMSNorm(nn.Module):
         return normed_inputs.astype(dtype), gate
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @at.typecheck
 class Embedder(nn.Module):
     """Embedder module."""
@@ -138,6 +144,7 @@ class Embedder(nn.Module):
     vocab_size: int
     embed_dim: int
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         self.input_embedding_table = self.param(
             "input_embedding",
@@ -145,21 +152,25 @@ class Embedder(nn.Module):
             (self.vocab_size, self.embed_dim),
         )
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def encode(self, x):
         x = self.input_embedding_table[(x,)]
         x *= jnp.sqrt(self.embed_dim).astype(x.dtype)
         return x
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def decode(self, x):
         return jnp.dot(x, self.input_embedding_table.T)
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @at.typecheck
 class Attention(nn.Module):
     """Attention module."""
 
     configs: Sequence[Config]
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, xs, positions, attn_mask, kv_cache):
         # all experts must share the same head dim, num heads, and num kv heads for self-attention to work
@@ -249,6 +260,7 @@ class Attention(nn.Module):
         return out, (k, v)
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @at.typecheck
 class FeedForward(nn.Module):
     """Feed forward module."""
@@ -256,6 +268,7 @@ class FeedForward(nn.Module):
     features: int
     hidden_dim: int
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x):
         dtype = x.dtype  # original dtype, could be half-precision
@@ -280,6 +293,7 @@ class FeedForward(nn.Module):
         return outputs
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @at.typecheck
 class Block(nn.Module):
     """Transformer block."""
@@ -289,6 +303,7 @@ class Block(nn.Module):
     dropout: float = 0.0
     dropout_bdims: tuple[int, ...] = ()
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, xs, kv_cache, positions, attn_mask, adarms_cond, deterministic=True):  # noqa: FBT002
         xs = sharding.activation_sharding_constraint(xs)
@@ -336,6 +351,7 @@ class Block(nn.Module):
 KVCache: TypeAlias = tuple[at.Float[at.Array, "l b _t _k _h"], at.Float[at.Array, "l b _t _v _h"]]
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 @at.typecheck
 class Module(nn.Module):
     """Transformer model, supporting a mixture of different weights for different tokens."""
@@ -347,6 +363,7 @@ class Module(nn.Module):
     dropout_bdims: tuple[int, ...] = ()  # Every float is dropped independently.
     adarms: bool = False
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         # all experts must have the same depth
         assert all(config.depth == self.configs[0].depth for config in self.configs)
@@ -381,10 +398,12 @@ class Module(nn.Module):
         )
         self.final_norms = [RMSNorm(name=_name("final_norm", i)) for i in range(len(self.configs))]
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @at.typecheck
     def embed(self, tokens: at.Int[at.Array, "b t"]) -> at.Float[at.Array, "b t d"]:
         return self.embedder.encode(tokens).astype(self.embed_dtype)
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @at.typecheck
     def __call__(
         self,
@@ -410,6 +429,7 @@ class Module(nn.Module):
             f(e, a)[0] if e is not None else e for f, e, a in zip(self.final_norms, embedded, adarms_cond, strict=True)
         ], kv_cache
 
+    # [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
     def init(self, use_adarms: Sequence[bool]):
         """Convenience method for initializing all parameters, necessary due to the quirks of linen."""
         self.embed(jnp.zeros((1, 1), dtype=jnp.int32))
@@ -421,6 +441,7 @@ class Module(nn.Module):
         )
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _apply_rope(x, *, positions, max_wavelength=10_000):
     """Applies RoPE positions [B, L] to x [B, L, H, D]."""
     freq_exponents = (2.0 / x.shape[-1]) * jnp.arange(x.shape[-1] // 2, dtype=jnp.float32)
@@ -440,6 +461,7 @@ def _apply_rope(x, *, positions, max_wavelength=10_000):
     return res.astype(x.dtype)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _name(name, i):
     # we name layers like this because we want the first expert's weights to have no suffix (e.g., "attn"), so that they
     # can be loaded seamlessly from the existing PaliGemma checkpoint. subsequent experts will have a suffix (e.g.,
@@ -450,6 +472,7 @@ def _name(name, i):
     return f"{name}_{i}"
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _gated_residual(x, y, gate):
     assert (x is None) == (y is None)
     if x is None:

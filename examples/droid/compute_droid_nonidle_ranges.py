@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 """
 Iterates through the DROID dataset and creates a json mapping from episode unique IDs to ranges of time steps
 that should be sampled during training (all others are filtered out).

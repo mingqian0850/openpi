@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 import collections
 import dataclasses
 import logging
@@ -18,6 +19,7 @@ LIBERO_DUMMY_ACTION = [0.0] * 6 + [-1.0]
 LIBERO_ENV_RESOLUTION = 256  # resolution used to render training data
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass
 class Args:
     #################################################################################################################
@@ -45,6 +47,7 @@ class Args:
     seed: int = 7  # Random Seed (for reproducibility)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def eval_libero(args: Args) -> None:
     # Set random seed
     np.random.seed(args.seed)
@@ -186,6 +189,7 @@ def eval_libero(args: Args) -> None:
     logging.info(f"Total episodes: {total_episodes}")
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _get_libero_env(task, resolution, seed):
     """Initializes and returns the LIBERO environment, along with the task description."""
     task_description = task.language
@@ -196,6 +200,7 @@ def _get_libero_env(task, resolution, seed):
     return env, task_description
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _quat2axisangle(quat):
     """
     Copied from robosuite: https://github.com/ARISE-Initiative/robosuite/blob/eafb81f54ffc104f905ee48a16bb15f059176ad3/robosuite/utils/transform_utils.py#L490C1-L512C55

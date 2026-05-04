@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 # Ignore lint errors because this file is mostly copied from ACT (https://github.com/tonyzhaozh/act).
 # ruff: noqa
 

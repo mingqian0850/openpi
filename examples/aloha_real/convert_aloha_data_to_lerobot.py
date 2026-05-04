@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 """
 Script to convert Aloha hdf5 data to the LeRobot dataset v2.0 format.
 
@@ -19,6 +20,7 @@ import tqdm
 import tyro
 
 
+# [解读]: 该配置类把分散的模型、数据或训练参数收束到一个稳定对象中，便于命令行覆盖和复现实验。
 @dataclasses.dataclass(frozen=True)
 class DatasetConfig:
     use_videos: bool = True
@@ -31,6 +33,7 @@ class DatasetConfig:
 DEFAULT_DATASET_CONFIG = DatasetConfig()
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def create_empty_dataset(
     repo_id: str,
     robot_type: str,
@@ -125,22 +128,26 @@ def create_empty_dataset(
     )
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_cameras(hdf5_files: list[Path]) -> list[str]:
     with h5py.File(hdf5_files[0], "r") as ep:
         # ignore depth channel, not currently handled
         return [key for key in ep["/observations/images"].keys() if "depth" not in key]  # noqa: SIM118
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def has_velocity(hdf5_files: list[Path]) -> bool:
     with h5py.File(hdf5_files[0], "r") as ep:
         return "/observations/qvel" in ep
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def has_effort(hdf5_files: list[Path]) -> bool:
     with h5py.File(hdf5_files[0], "r") as ep:
         return "/observations/effort" in ep
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def load_raw_images_per_camera(ep: h5py.File, cameras: list[str]) -> dict[str, np.ndarray]:
     imgs_per_cam = {}
     for camera in cameras:
@@ -162,6 +169,7 @@ def load_raw_images_per_camera(ep: h5py.File, cameras: list[str]) -> dict[str, n
     return imgs_per_cam
 
 
+# [解读]: 该函数处理持久化边界，确保权重、资产或中间状态可以在训练和推理之间稳定复用。
 def load_raw_episode_data(
     ep_path: Path,
 ) -> tuple[dict[str, np.ndarray], torch.Tensor, torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
@@ -190,6 +198,7 @@ def load_raw_episode_data(
     return imgs_per_cam, state, action, velocity, effort
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def populate_dataset(
     dataset: LeRobotDataset,
     hdf5_files: list[Path],
@@ -226,6 +235,7 @@ def populate_dataset(
     return dataset
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def port_aloha(
     raw_dir: Path,
     repo_id: str,

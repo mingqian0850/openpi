@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于训练层，负责把配置、数据、优化器、分片或 checkpoint 组合成可恢复的训练流程。
 """
 RLDS-based data loader for DROID.
 While openpi typically uses LeRobot's data loader, it is not currently scalable enough for larger datasets like DROID.
@@ -18,6 +19,7 @@ import tqdm
 import openpi.shared.download as download
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class DroidActionSpace(Enum):
     """Action space for DROID dataset."""
 
@@ -25,6 +27,7 @@ class DroidActionSpace(Enum):
     JOINT_VELOCITY = auto()
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 @dataclasses.dataclass
 class RLDSDataset:
     name: str
@@ -33,6 +36,7 @@ class RLDSDataset:
     filter_dict_path: str | None = None
 
 
+# [解读]: 该数据类把不同来源的数据统一成迭代接口，使训练循环不必关心底层存储格式。
 class DroidRldsDataset:
     def __init__(
         self,
@@ -61,6 +65,7 @@ class DroidRldsDataset:
         # Ensure dataset weights sum to 1.0
         assert sum(dataset.weight for dataset in datasets) == 1.0, "Dataset weights must sum to 1.0"
 
+        # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
         def prepare_single_dataset(dataset_cfg: RLDSDataset):
             # ds_name, version = dataset_name.split(":")
             ds_name, version = dataset_cfg.name, dataset_cfg.version
@@ -112,6 +117,7 @@ class DroidRldsDataset:
                     tf.lookup.KeyValueTensorInitializer([""], [True]), default_value=True
                 )
 
+            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
             def restructure(traj):
                 """Reformat observation and action keys, sample language instruction."""
                 # Important: we use joint *position* action space -- easier to simulate!
@@ -170,6 +176,7 @@ class DroidRldsDataset:
 
             dataset = dataset.traj_map(restructure, num_parallel_calls)
 
+            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
             def chunk_actions(traj):
                 """Splits episode into action chunks."""
                 traj_len = tf.shape(traj["actions"])[0]
@@ -197,12 +204,14 @@ class DroidRldsDataset:
             dataset = dataset.flatten(num_parallel_calls=num_parallel_calls)
 
             # Filter data that doesn't pass the filter
+            # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
             def filter_from_dict(frame):
                 return frame["passes_filter"]
 
             dataset = dataset.filter(filter_from_dict)
 
             # Remove "passes_filter" key from output
+            # [解读]: 该函数生成约束、掩码或诊断信息，让后续流程能明确数组形状、参数范围和执行边界。
             def remove_passes_filter(frame):
                 frame.pop("passes_filter")
                 return frame
@@ -210,6 +219,7 @@ class DroidRldsDataset:
             dataset = dataset.map(remove_passes_filter)
 
             # Decode images: RLDS saves encoded images, only decode now for efficiency
+            # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
             def decode_images(traj):
                 traj["observation"]["image"] = tf.io.decode_image(
                     traj["observation"]["image"], expand_animations=False, dtype=tf.uint8
@@ -239,9 +249,11 @@ class DroidRldsDataset:
         self.batch_size = batch_size
         self.shuffle = shuffle
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __iter__(self):
         yield from self.dataset.as_numpy_iterator()
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __len__(self):
         # This is the approximate number of samples in DROID after filtering.
         # Easier to hardcode than to iterate through the dataset and compute it.

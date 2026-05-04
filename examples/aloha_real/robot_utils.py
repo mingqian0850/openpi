@@ -1,3 +1,4 @@
+﻿# [解读]: 该示例源码展示具体机器人或 benchmark 如何接入 openpi 的数据格式、远程 policy 和动作执行流程。
 # Ignore lint errors because this file is mostly copied from ACT (https://github.com/tonyzhaozh/act).
 # ruff: noqa
 from collections import deque
@@ -16,6 +17,7 @@ from sensor_msgs.msg import JointState
 from examples.aloha_real import constants
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class ImageRecorder:
     def __init__(self, init_node=True, is_debug=False):
         self.is_debug = is_debug
@@ -45,6 +47,7 @@ class ImageRecorder:
         self.cam_last_timestamps = {cam_name: 0.0 for cam_name in self.camera_names}
         time.sleep(0.5)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def image_cb(self, cam_name, data):
         setattr(
             self,
@@ -69,22 +72,27 @@ class ImageRecorder:
                 data.images[0].header.stamp.secs + data.images[0].header.stamp.nsecs * 1e-9
             )
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def image_cb_cam_high(self, data):
         cam_name = "cam_high"
         return self.image_cb(cam_name, data)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def image_cb_cam_low(self, data):
         cam_name = "cam_low"
         return self.image_cb(cam_name, data)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def image_cb_cam_left_wrist(self, data):
         cam_name = "cam_left_wrist"
         return self.image_cb(cam_name, data)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def image_cb_cam_right_wrist(self, data):
         cam_name = "cam_right_wrist"
         return self.image_cb(cam_name, data)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def get_images(self):
         image_dict = {}
         for cam_name in self.camera_names:
@@ -97,6 +105,7 @@ class ImageRecorder:
             image_dict[f"{cam_name}_depth"] = depth_image
         return image_dict
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def print_diagnostics(self):
         def dt_helper(l):
             l = np.array(l)
@@ -109,6 +118,7 @@ class ImageRecorder:
         print()
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class Recorder:
     def __init__(self, side, init_node=True, is_debug=False):
         self.secs = None
@@ -138,6 +148,7 @@ class Recorder:
             self.gripper_command_timestamps = deque(maxlen=50)
         time.sleep(0.1)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def puppet_state_cb(self, data):
         self.qpos = data.position
         self.qvel = data.velocity
@@ -146,16 +157,19 @@ class Recorder:
         if self.is_debug:
             self.joint_timestamps.append(time.time())
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def puppet_arm_commands_cb(self, data):
         self.arm_command = data.cmd
         if self.is_debug:
             self.arm_command_timestamps.append(time.time())
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def puppet_gripper_commands_cb(self, data):
         self.gripper_command = data.cmd
         if self.is_debug:
             self.gripper_command_timestamps.append(time.time())
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def print_diagnostics(self):
         def dt_helper(l):
             l = np.array(l)
@@ -169,14 +183,17 @@ class Recorder:
         print(f"{joint_freq=:.2f}\n{arm_command_freq=:.2f}\n{gripper_command_freq=:.2f}\n")
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_arm_joint_positions(bot):
     return bot.arm.core.joint_states.position[:6]
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def get_arm_gripper_positions(bot):
     return bot.gripper.core.joint_states.position[6]
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def move_arms(bot_list, target_pose_list, move_time=1):
     num_steps = int(move_time / constants.DT)
     curr_pose_list = [get_arm_joint_positions(bot) for bot in bot_list]
@@ -190,6 +207,7 @@ def move_arms(bot_list, target_pose_list, move_time=1):
         time.sleep(constants.DT)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def move_grippers(bot_list, target_pose_list, move_time):
     print(f"Moving grippers to {target_pose_list=}")
     gripper_command = JointSingleCommand(name="gripper")
@@ -211,6 +229,7 @@ def move_grippers(bot_list, target_pose_list, move_time):
             time.sleep(constants.DT)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def setup_puppet_bot(bot):
     bot.dxl.robot_reboot_motors("single", "gripper", True)
     bot.dxl.robot_set_operating_modes("group", "arm", "position")
@@ -218,33 +237,39 @@ def setup_puppet_bot(bot):
     torque_on(bot)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def setup_master_bot(bot):
     bot.dxl.robot_set_operating_modes("group", "arm", "pwm")
     bot.dxl.robot_set_operating_modes("single", "gripper", "current_based_position")
     torque_off(bot)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def set_standard_pid_gains(bot):
     bot.dxl.robot_set_motor_registers("group", "arm", "Position_P_Gain", 800)
     bot.dxl.robot_set_motor_registers("group", "arm", "Position_I_Gain", 0)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def set_low_pid_gains(bot):
     bot.dxl.robot_set_motor_registers("group", "arm", "Position_P_Gain", 100)
     bot.dxl.robot_set_motor_registers("group", "arm", "Position_I_Gain", 0)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def torque_off(bot):
     bot.dxl.robot_torque_enable("group", "arm", False)
     bot.dxl.robot_torque_enable("single", "gripper", False)
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def torque_on(bot):
     bot.dxl.robot_torque_enable("group", "arm", True)
     bot.dxl.robot_torque_enable("single", "gripper", True)
 
 
 # for DAgger
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def sync_puppet_to_master(master_bot_left, master_bot_right, puppet_bot_left, puppet_bot_right):
     print("\nSyncing!")
 

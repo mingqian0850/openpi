@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于策略适配层，负责把机器人环境字段和模型统一输入输出格式互相转换。
 import dataclasses
 
 import einops
@@ -7,6 +8,7 @@ from openpi import transforms
 from openpi.models import model as _model
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_libero_example() -> dict:
     """Creates a random input example for the Libero policy."""
     return {
@@ -17,6 +19,7 @@ def make_libero_example() -> dict:
     }
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _parse_image(image) -> np.ndarray:
     image = np.asarray(image)
     if np.issubdtype(image.dtype, np.floating):
@@ -26,6 +29,7 @@ def _parse_image(image) -> np.ndarray:
     return image
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class LiberoInputs(transforms.DataTransformFn):
     """
@@ -39,6 +43,7 @@ class LiberoInputs(transforms.DataTransformFn):
     # Do not change this for your own dataset.
     model_type: _model.ModelType
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: dict) -> dict:
         # Possibly need to parse images to uint8 (H,W,C) since LeRobot automatically
         # stores as float32 (C,H,W), gets skipped for policy inference.
@@ -83,6 +88,7 @@ class LiberoInputs(transforms.DataTransformFn):
         return inputs
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class LiberoOutputs(transforms.DataTransformFn):
     """
@@ -92,6 +98,7 @@ class LiberoOutputs(transforms.DataTransformFn):
     For your own dataset, you can copy this class and modify the action dimension based on the comments below.
     """
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: dict) -> dict:
         # Only return the first N actions -- since we padded actions above to fit the model action
         # dimension, we need to now parse out the correct number of actions in the return dict.

@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于策略适配层，负责把机器人环境字段和模型统一输入输出格式互相转换。
 import dataclasses
 
 import einops
@@ -7,6 +8,7 @@ from openpi import transforms
 from openpi.models import model as _model
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_droid_example() -> dict:
     """Creates a random input example for the Droid policy."""
     return {
@@ -18,6 +20,7 @@ def make_droid_example() -> dict:
     }
 
 
+# [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
 def _parse_image(image) -> np.ndarray:
     image = np.asarray(image)
     if np.issubdtype(image.dtype, np.floating):
@@ -27,11 +30,13 @@ def _parse_image(image) -> np.ndarray:
     return image
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class DroidInputs(transforms.DataTransformFn):
     # Determines which model will be used.
     model_type: _model.ModelType
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: dict) -> dict:
         gripper_pos = np.asarray(data["observation/gripper_position"])
         if gripper_pos.ndim == 0:
@@ -74,8 +79,10 @@ class DroidInputs(transforms.DataTransformFn):
         return inputs
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclasses.dataclass(frozen=True)
 class DroidOutputs(transforms.DataTransformFn):
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, data: dict) -> dict:
         # Only return the first 8 dims.
         return {"actions": np.asarray(data["actions"][:, :8])}

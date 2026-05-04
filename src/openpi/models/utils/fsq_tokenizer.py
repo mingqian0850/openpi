@@ -1,3 +1,4 @@
+﻿# [解读]: 该模块位于模型定义层，负责把视觉、语言、状态或动作 token 组织成 VLA 模型可训练和可采样的结构。
 import math
 from typing import Any, Literal
 
@@ -12,6 +13,7 @@ import jax
 import jax.numpy as jnp
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class FsqCodebook(nn.Module):
     input_dim: int
     target_codebook_size: int
@@ -19,6 +21,7 @@ class FsqCodebook(nn.Module):
 
     _bins_per_dim: tuple[int] | None = None
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def bins_per_dim(self) -> tuple[int]:
         if self._bins_per_dim is not None:
@@ -33,6 +36,7 @@ class FsqCodebook(nn.Module):
         else:
             raise ValueError(f"Codebook type {self.codebook_type} not supported.")
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def place_values(self) -> jnp.ndarray:
         place_values = [1]
@@ -40,6 +44,7 @@ class FsqCodebook(nn.Module):
             place_values.append(place_values[-1] * b)
         return jnp.array(place_values)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @staticmethod
     def _get_bins_fsq(target_codebook_size: int) -> tuple[int]:
         """
@@ -58,6 +63,7 @@ class FsqCodebook(nn.Module):
         else:
             raise ValueError(f"Codebook size {target_codebook_size} not supported.")
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @staticmethod
     def _get_bins_custom(target_codebook_size: int) -> tuple[int]:
         if target_codebook_size == 2**8:
@@ -72,6 +78,7 @@ class FsqCodebook(nn.Module):
             return (256, 256)
         return None
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @staticmethod
     def _get_bins_lfq(target_codebook_size: int) -> tuple[int]:
         """
@@ -81,15 +88,18 @@ class FsqCodebook(nn.Module):
 
         return (2,) * int(math.log2(target_codebook_size))
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         self.proj_down = nn.Dense(len(self.bins_per_dim))
         self.proj_up = nn.Dense(self.input_dim)
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, inputs: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
         tokens, z = self.encode(inputs)
         output = self.decode(tokens, z_grad=z)
         return tokens, output
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def encode(self, inputs: jnp.ndarray) -> tuple[jnp.ndarray, jnp.ndarray]:
         bases = jnp.array(self.bins_per_dim)
 
@@ -102,6 +112,7 @@ class FsqCodebook(nn.Module):
 
         return tokens, z
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def decode(self, tokens: jnp.ndarray, z_grad: jax.Array | None = None) -> jnp.ndarray:
         bases = jnp.array(self.bins_per_dim)
         digits = self.digitize(tokens)
@@ -114,23 +125,28 @@ class FsqCodebook(nn.Module):
 
         return self.proj_up(z_q)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def undigitize(self, digits: jnp.ndarray) -> jnp.ndarray:
         return jnp.sum(digits * jnp.array(self.place_values), axis=-1)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def digitize(self, tokens: jnp.ndarray) -> jnp.ndarray:
         return (tokens[..., None] // jnp.array(self.place_values)) % jnp.array(self.bins_per_dim)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def vocab_size(self) -> int:
         return math.prod(self.bins_per_dim)
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class ResNetDownBlock(nn.Module):
     stride: int = 1
     n_filters: int = 64
     dropout_rate: float = 0.0
     group_size: int = 32
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x: jnp.ndarray, *, train: bool = True) -> jnp.ndarray:
         skip = x
@@ -147,12 +163,14 @@ class ResNetDownBlock(nn.Module):
         return skip + x
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class ResNetUpBlock(nn.Module):
     stride: int = 1
     n_filters: int = 64
     dropout_rate: float = 0.0
     group_size: int = 32
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(self, x: jnp.ndarray, *, train: bool = True) -> jnp.ndarray:
         skip = x
@@ -169,6 +187,7 @@ class ResNetUpBlock(nn.Module):
         return skip + x
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 @dataclass
 class LfqCodebookOutput:
     tokens: jnp.ndarray
@@ -178,10 +197,12 @@ class LfqCodebookOutput:
     commit_loss: jnp.ndarray
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class LookupFreeQuantization(nn.Module):
     num_dims: int
     latent_dim: int
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         self.codebook = jnp.array([-1, 1])
         self.activation = nn.tanh
@@ -189,16 +210,19 @@ class LookupFreeQuantization(nn.Module):
         self.project_down = nn.Dense(self.num_dims)
         self.project_up = nn.Dense(self.latent_dim)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def encode(self, z: jnp.ndarray) -> jnp.ndarray:
         z = self.project_down(z)
         token_squared_distances = jnp.square(z[..., None] - self.codebook)
         token_bits = jnp.argmin(token_squared_distances, axis=-1)
         return jnp.sum(token_bits * (2 ** jnp.arange(self.num_dims)), axis=-1)
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def decode(self, tokens: jnp.ndarray) -> jnp.ndarray:
         token_bits = (tokens[..., None] & (2 ** jnp.arange(self.num_dims))).astype(jnp.int32)
         return self.project_up(self.codebook[token_bits])
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     def loss(self, x: jnp.ndarray) -> LfqCodebookOutput:
         z = self.project_down(x)
         z = self.activation(z)
@@ -235,10 +259,12 @@ class LookupFreeQuantization(nn.Module):
         )
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def make_block_causal_attention_matrix(q: jnp.ndarray, k: jnp.ndarray, bs_q: int, bs_k: int) -> jnp.ndarray:
     return nn.make_attention_mask(q, k, pairwise_fn=lambda x, y: jnp.greater_equal(x // bs_k, y // bs_q))
 
 
+# [解读]: 该类把相关状态和行为集中在一个边界内，降低训练、推理或示例代码之间的耦合。
 class GeGLU(Module):
     """Gated Linear Unit with GELU (GeGLU) activation function.
     GeGLU is a Flax layer that combines a linear transformation with a GELU
@@ -251,6 +277,7 @@ class GeGLU(Module):
 
     output_dim: int = -1
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @compact
     def __call__(self, inputs: Array) -> Array:
         """Applies the GeGLU activation to the inputs.
@@ -266,12 +293,14 @@ class GeGLU(Module):
         return x * nn.gelu(gate)
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class CrossAttentionLayer(nn.Module):
     dropout_rate: float = 0.0
     num_heads: int = None
     causal: bool = False
     mlp_ratio: float = 4.0
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(
         self,
@@ -324,6 +353,7 @@ class CrossAttentionLayer(nn.Module):
         return skip + x
 
 
+# [解读]: 该函数集中创建复杂对象，避免调用方散落地拼接配置、依赖和运行时参数。
 def sinusoidal_pe_init(_, shape: tuple[int, int]) -> jnp.ndarray:
     seq_len, d_embed = shape
 
@@ -338,6 +368,7 @@ def sinusoidal_pe_init(_, shape: tuple[int, int]) -> jnp.ndarray:
     )
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class TokenizerEncoderDecoder(nn.Module):
     num_tokens: int
     num_cross_tokens: int
@@ -347,6 +378,7 @@ class TokenizerEncoderDecoder(nn.Module):
     mlp_ratio: float = 4.0
     use_state_conditioning: bool = False
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     @nn.compact
     def __call__(
         self,
@@ -382,6 +414,7 @@ class TokenizerEncoderDecoder(nn.Module):
         return x
 
 
+# [解读]: 该模型类封装一段可复用的网络或编码逻辑，让多模态 token、状态和动作在统一接口下组合。
 class FsqAttentionTokenizer(nn.Module):
     embed_dim: int
     data_dim: int
@@ -396,10 +429,12 @@ class FsqAttentionTokenizer(nn.Module):
 
     use_state_conditioning: bool = False
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     @property
     def vocab_size(self) -> int:
         return math.prod(FsqCodebook._get_bins_fsq(self.target_codebook_size))  # noqa: SLF001
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def setup(self):
         self.proj = nn.Dense(self.embed_dim)
         self.encoder = TokenizerEncoderDecoder(
@@ -427,6 +462,7 @@ class FsqAttentionTokenizer(nn.Module):
         self.proj_mean = nn.Dense(self.data_dim)
         self.out_scale = self.param("out_scale", lambda _: jnp.full((), 1.0))
 
+    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def tokenize(
         self, action: jnp.ndarray, *, obs: jnp.ndarray | None = None, train: bool = False
     ) -> tuple[jnp.ndarray, jnp.ndarray]:
@@ -438,11 +474,13 @@ class FsqAttentionTokenizer(nn.Module):
 
         return self.codebook.encode(x)
 
+    # [解读]: 该函数位于数据规整路径上，用统一规则消除不同数据来源之间的字段、尺度或形状差异。
     def detokenize(self, tokens: jnp.ndarray, *, obs: jnp.ndarray | None = None) -> jnp.ndarray:
         x = self.decoder(self.codebook.decode(tokens), state_conditioning=obs)
         mean = self.proj_mean(x)
         return mean * self.out_scale
 
+    # [解读]: 该函数承载核心学习或推理步骤，把已经标准化的 observation 转换为损失、梯度或动作输出。
     def loss(
         self, action: jnp.ndarray, *, obs: jnp.ndarray | None = None, train: bool = True
     ) -> tuple[jnp.ndarray, dict[str, jnp.ndarray]]:
@@ -465,6 +503,7 @@ class FsqAttentionTokenizer(nn.Module):
             "mae": mae,
         }
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __call__(self, *args: Any, **kwargs: Any) -> tuple[jnp.ndarray, dict[str, jnp.ndarray]]:
         """
         Dummy for .init

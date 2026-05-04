@@ -1,3 +1,4 @@
+﻿# [解读]: 该客户端模块定义机器人侧最小接口和远程调用协议，使控制循环无需直接依赖服务端模型实现。
 import logging
 import threading
 import time
@@ -7,9 +8,11 @@ from openpi_client.runtime import environment as _environment
 from openpi_client.runtime import subscriber as _subscriber
 
 
+# [解读]: 该运行时类隔离模型推理和外部系统交互，让机器人控制、远程调用和本地模型可以独立演进。
 class Runtime:
     """The core module orchestrating interactions between key components of the system."""
 
+    # [解读]: 该特殊方法维护对象生命周期或协议行为，保证实例能被框架、数据加载器或运行时正确调用。
     def __init__(
         self,
         environment: _environment.Environment,
@@ -29,6 +32,7 @@ class Runtime:
         self._in_episode = False
         self._episode_steps = 0
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def run(self) -> None:
         """Runs the runtime loop continuously until stop() is called or the environment is done."""
         for _ in range(self._num_episodes):
@@ -37,16 +41,19 @@ class Runtime:
         # Final reset, this is important for real environments to move the robot to its home position.
         self._environment.reset()
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def run_in_new_thread(self) -> threading.Thread:
         """Runs the runtime loop in a new thread."""
         thread = threading.Thread(target=self.run)
         thread.start()
         return thread
 
+    # [解读]: 该函数封装一个流程节点，使调用方可以按业务语义组合训练、推理或数据处理步骤。
     def mark_episode_complete(self) -> None:
         """Marks the end of an episode."""
         self._in_episode = False
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def _run_episode(self) -> None:
         """Runs a single episode."""
         logging.info("Starting episode...")
@@ -77,6 +84,7 @@ class Runtime:
         for subscriber in self._subscribers:
             subscriber.on_episode_end()
 
+    # [解读]: 该函数是运行时控制点，负责把配置、循环、网络连接或环境交互串成可执行流程。
     def _step(self) -> None:
         """A single step of the runtime loop."""
         observation = self._environment.get_observation()
